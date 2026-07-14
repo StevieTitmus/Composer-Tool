@@ -99,6 +99,7 @@ const DATA = {"artists":[{"n":"Audiomachine","i":"1985509"},{"n":"Tim Garland","
 const artistMap=new Map(), contactMap=new Map();
 DATA.artists.forEach(a=>{if(!artistMap.has(a.n.toLowerCase()))artistMap.set(a.n.toLowerCase(),a.i)});
 DATA.contacts.forEach(c=>{if(!contactMap.has(c.n.toLowerCase()))contactMap.set(c.n.toLowerCase(),c.i)});
+const instrCanon=new Map();DATA.instruments.forEach(i=>{instrCanon.set(i.toLowerCase(),i)});
 
 function el(tag,attrs={},kids=[]){const e=document.createElement(tag);
   for(const k in attrs){if(k=='class')e.className=attrs[k];else if(k=='html')e.innerHTML=attrs[k];else e.setAttribute(k,attrs[k]);}
@@ -151,14 +152,16 @@ function contributorRow(){
   // instruments (shown if Performer)
   const instr=el('div',{class:'instr'});
   instr.append(el('label',{},'Instruments (for Performer)'));
-  const iInput=el('input',{type:'text',list:'dl-instruments',placeholder:'Pick or type an instrument (adds automatically)'});
-  const tags=el('div',{class:'tags'});const chosen=[];
-  function renderTags(){tags.innerHTML='';chosen.forEach((t,idx)=>{const b=el('button',{},'✕');b.onclick=()=>{chosen.splice(idx,1);renderTags();};tags.append(el('span',{class:'tag'},[t,b]));});}
-  function commitInstr(){const v=iInput.value.trim();if(v&&!chosen.includes(v)){chosen.push(v);renderTags();update();}iInput.value='';}
+  const iInput=el('input',{type:'text',list:'dl-instruments',placeholder:'Start typing and pick from the list'});
+  const tags=el('div',{class:'tags'});const chosen=[];const inote=el('div',{class:'idtag'});
+  function renderTags(){tags.innerHTML='';chosen.forEach((t,idx)=>{const b=el('button',{},'✕');b.onclick=()=>{chosen.splice(idx,1);renderTags();update();};tags.append(el('span',{class:'tag'},[t,b]));});}
+  function commitInstr(){const v=iInput.value.trim();if(!v){inote.textContent='';return;}const canon=instrCanon.get(v.toLowerCase());
+    if(canon){if(chosen.indexOf(canon)<0){chosen.push(canon);renderTags();update();}iInput.value='';inote.textContent='';}
+    else{inote.className='idtag miss';inote.textContent='“'+v+'” isn’t on the approved instrument list — pick from the suggestions.';}}
   iInput.addEventListener('keydown',e=>{if(e.key=='Enter'){e.preventDefault();commitInstr();}});
   iInput.addEventListener('change',commitInstr);
   iInput.addEventListener('blur',commitInstr);
-  instr.append(iInput,tags);
+  instr.append(iInput,tags,inote);
   roleBoxes.find(b=>b.value=='Performer').addEventListener('change',e=>{instr.classList.toggle('show',e.target.checked);});
   wrap.append(top,el('label',{},'Role(s) — tick all that apply'),rolesWrap,instr);
   wrap._get=()=>({name:name.value.trim(),id:idHidden.value,roles:roleBoxes.filter(b=>b.checked).map(b=>b.value),instruments:chosen.slice()});
@@ -215,7 +218,7 @@ function esc(s){s=(s==null?'':''+s);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'
 function rowFor(track,display,artists,contribs,maxA,maxC){
   const out=[esc(album.value.trim()),esc(track),esc(display)];
   for(let i=0;i<maxA;i++){const a=artists[i]||{};out.push(esc(a.id||''),esc(a.name||''),esc(a.role||''));}
-  for(let i=0;i<maxC;i++){const c=contribs[i]||{};out.push(esc(c.id||''),esc(c.name||''),esc((c.roles||[]).join(',')),esc((c.instruments||[]).join(',')));}
+  for(let i=0;i<maxC;i++){const c=contribs[i]||{};out.push(esc(c.id||''),esc(c.name||''),esc((c.roles||[]).join('\n')),esc((c.instruments||[]).join('\n')));}
   return out.join(',');
 }
 function doDownload(){
