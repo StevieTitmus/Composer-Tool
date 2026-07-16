@@ -4,6 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Composer Submission — Audio Network</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{ --ink:#010101; --sub:#6A7170; --line:#E2E2E2; --acc:#010101; --accd:#010101;
          --bg:#F6F6F6; --card:#FFFFFF; --bad:#C0392B; --badbg:#FDECEC; --ok:#1E7D4F;
@@ -63,8 +64,8 @@
 <main>
   <div class="card">
     <h2>Album</h2>
-    <p class="hint">Start with the album name.</p>
-    <label for="album">Album name *</label>
+    <p class="hint">Album name (optional).</p>
+    <label for="album">Album name <span class="muted">(optional)</span></label>
     <input type="text" id="album" placeholder="e.g. Northern Lights"/>
   </div>
 
@@ -85,8 +86,11 @@
 </main>
 
 <div class="bar">
-  <div class="msg" id="msg">Fill in the album and at least one artist.</div>
-  <button class="go" id="go">Review &amp; download</button>
+  <div class="msg" id="msg">Add at least one artist.</div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <button class="go" id="go" style="background:#fff;color:var(--ink);border:1px solid var(--ink)">Credits only (CSV)</button>
+    <button class="go" id="goXlsx" style="display:none">Download finalised sheet (.xlsx)</button>
+  </div>
 </div>
 <div id="modal" class="overlay" style="display:none"><div class="modal" id="modalCard"></div></div>
 
@@ -102,6 +106,7 @@ DATA.contacts.forEach(c=>{if(!contactMap.has(c.n.toLowerCase()))contactMap.set(c
 const instrCanon=new Map();DATA.instruments.forEach(i=>{instrCanon.set(i.toLowerCase(),i)});
 /* track names pulled from Step 1 (track sheet builder), shared via localStorage on the same site */
 let TRACKNAMES=[];try{TRACKNAMES=JSON.parse(localStorage.getItem('anTrackTitles')||'[]');}catch(e){}
+let TRACKROWS=[];try{TRACKROWS=JSON.parse(localStorage.getItem('anTrackRows')||'[]');}catch(e){}
 
 function el(tag,attrs={},kids=[]){const e=document.createElement(tag);
   for(const k in attrs){if(k=='class')e.className=attrs[k];else if(k=='html')e.innerHTML=attrs[k];else e.setAttribute(k,attrs[k]);}
@@ -223,9 +228,10 @@ function update(){
   let miss=0; const chk=arr=>arr.forEach(a=>{if(a.name){const m=(a.id==''); if(m)miss++;}});
   chk(d.artists); d.contribs.forEach(c=>{if(c.name&&c.id=='')miss++;});
   d.exceptions.forEach(e=>{chk(e.artists);e.contribs.forEach(c=>{if(c.name&&c.id=='')miss++;});});
-  const ok=d.album&&hasArtist;
+  const ok=hasArtist;
   go.disabled=!ok;
-  msg.textContent = !d.album ? 'Enter the album name.' : !hasArtist ? 'Add at least one artist.' :
+  const gx=document.getElementById('goXlsx'); if(gx)gx.disabled=!ok;
+  msg.textContent = !hasArtist ? 'Add at least one artist.' :
     (miss? (miss+' name(s) not on the master list — you can still submit; they’ll be flagged.') : 'Ready to download.');
 }
 function esc(s){s=(s==null?'':''+s);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
@@ -275,6 +281,45 @@ function showSummary(){
   document.getElementById('mDl').onclick=()=>{document.getElementById('modal').style.display='none';doDownload();};
 }
 document.getElementById('go').onclick=()=>showSummary();
+
+/* ---------- Finalised upload sheet (.xlsx): Step-1 track rows joined with credits ---------- */
+function baseTitle(t){let s=(t||'').trim();let prev;do{prev=s;s=s.replace(/\s*\([^)]*\)\s*$/,'').trim();s=s.replace(/\s+\d+\s*$/,'').trim();}while(s!==prev&&s.length);return s;}
+function creditsForBase(base,d){
+  const ex=d.exceptions.find(e=>e.track&&baseTitle(e.track).toLowerCase()===base.toLowerCase());
+  return ex?{artists:ex.artists,contribs:ex.contribs}:{artists:d.artists,contribs:d.contribs};
+}
+function downloadFinal(){
+  if(typeof XLSX==='undefined'){document.getElementById('msg').textContent='Spreadsheet library didn’t load — open in a normal browser tab.';return;}
+  const d=collect();
+  const sets=[{artists:d.artists,contribs:d.contribs},...d.exceptions.map(e=>({artists:e.artists,contribs:e.contribs}))];
+  const maxA=Math.max(1,...sets.map(s=>s.artists.filter(a=>a.name).length));
+  const maxC=Math.max(1,...sets.map(s=>s.contribs.filter(c=>c.name).length));
+  const labels=['ID','Title','Version','Mix Type','Key','BPM','Meter','Tempo','Description','Display Artists'];
+  const sys=['id','title','version','Mix Type','musical_key','bpm','meter','tempo','description','display_artists'];
+  for(let i=1;i<=maxA;i++){labels.push('Artist '+i+' ID','Artist '+i+' Name','Artist '+i+' Role');sys.push('artist_'+i+'_id','artist_'+i+'_name','artist_'+i+'_role');}
+  for(let i=1;i<=maxC;i++){labels.push('Contributor '+i+' ID','Contributor '+i+' Name','Contributor '+i+' Roles','Contributor '+i+' Instrument Types');sys.push('contributor_'+i+'_id','contributor_'+i+'_name','contributor_'+i+'_roles_esv','contributor_'+i+'_instrument_types_esv');}
+  const aoa=[labels,sys];
+  TRACKROWS.forEach(tr=>{
+    const cr=creditsForBase(baseTitle(tr[1]),d);
+    const arts=cr.artists.filter(a=>a.name), cons=cr.contribs.filter(c=>c.name);
+    const row=[tr[0]||'',tr[1]||'',tr[2]||'',tr[3]||'',tr[4]||'',tr[5]||'',tr[6]||'',tr[7]||'',tr[8]||'',''];
+    for(let i=0;i<maxA;i++){const a=arts[i]||{};row.push(a.id||'',a.name||'',a.role||'');}
+    for(let i=0;i<maxC;i++){const c=cons[i]||{};row.push(c.id||'',c.name||'',(c.roles||[]).join('\n'),(c.instruments||[]).join('\n'));}
+    aoa.push(row);
+  });
+  try{
+    const ws=XLSX.utils.aoa_to_sheet(aoa);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Upload Sheet');
+    const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    const blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url=URL.createObjectURL(blob);const a=document.createElement('a');
+    a.href=url;a.download=(album.value.trim().replace(/[^a-z0-9]+/gi,'_')||'album')+'_upload_sheet.xlsx';document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1500);
+    document.getElementById('msg').textContent='Downloaded finalised sheet ('+TRACKROWS.length+' rows). Engineers / Display Artists can still be added in the Stitch tool.';
+  }catch(e){document.getElementById('msg').textContent='Download blocked by the preview — open in a normal browser tab.';}
+}
+const goXlsx=document.getElementById('goXlsx');
+if(TRACKROWS.length){goXlsx.style.display='';goXlsx.onclick=downloadFinal;}
+
 document.getElementById('modal').addEventListener('click',e=>{if(e.target.id=='modal')document.getElementById('modal').style.display='none';});
 update();
 </script>

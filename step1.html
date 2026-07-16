@@ -146,7 +146,9 @@ function update(){
   });
   document.getElementById('go').disabled=!ok;
   document.getElementById('msg').textContent = !tracks.length?'Add a track to begin.' : ok?(tracks.length+' track(s) ready — download, then continue to credits.') : 'Each track needs a title and at least one mix variation/type.';
-  try{localStorage.setItem('anTrackTitles',JSON.stringify(tracks.map(t=>t.data.title).filter(Boolean)));}catch(e){}
+  try{localStorage.setItem('anTrackTitles',JSON.stringify(tracks.map(t=>t.data.title).filter(Boolean)));
+    const allRows=[];tracks.forEach(o=>{if(o.data.title)buildRows(o.data).forEach(r=>allRows.push(r));});
+    localStorage.setItem('anTrackRows',JSON.stringify(allRows));}catch(e){}
 }
 function esc(s){return (s==null?'':''+s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 document.getElementById('go').onclick=()=>{
