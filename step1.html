@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Track Sheet — Step 1 — Audio Network</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--ink:#010101;--sub:#6A7170;--line:#E2E2E2;--bg:#F6F6F6;--card:#FFFFFF;--bad:#C0392B;--badbg:#FDECEC;--ok:#1E7D4F;--shadow:0 2px 8px 1px rgba(1,1,1,.10);}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Brandon Text","Brandon Grotesque","Helvetica Neue",Arial,sans-serif}
+header{background:var(--card);color:var(--ink);padding:26px;border-bottom:1px solid var(--line);box-shadow:var(--shadow)}
+header h1{margin:0 0 4px;font-size:32px;font-weight:900;letter-spacing:-.01em}
+header p{margin:0;color:var(--sub);font-size:16px}
+.steps{max-width:960px;margin:16px auto 0;padding:0 18px;display:flex;gap:8px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.steps span{padding:6px 12px;border:1px solid var(--line);border-radius:2px;background:#fff}
+.steps .on{background:var(--ink);color:#fff;border-color:var(--ink)}
+main{max-width:960px;margin:0 auto;padding:18px 18px 120px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:2px;padding:18px;margin:16px 0;box-shadow:var(--shadow)}
+.card h2{margin:0 0 4px;font-size:20px;font-weight:900}
+.hint{margin:0 0 14px;color:var(--sub);font-size:14px}
+label{display:block;font-weight:700;font-size:13px;margin:0 0 4px}
+input[type=text],textarea,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:2px;font-size:15px;background:#fff;font-family:inherit}
+input[type=text]:focus,textarea:focus,select:focus{outline:none;border-color:var(--ink)}
+textarea{min-height:52px;resize:vertical}
+.tgrid{display:grid;grid-template-columns:1fr 90px 110px 110px 120px;gap:10px}
+@media(max-width:760px){.tgrid{grid-template-columns:1fr 1fr}}
+.trackhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.trackhead h3{margin:0;font-size:16px;font-weight:900}
+.mainbadge{display:inline-block;background:var(--ink);color:#fff;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:2px;margin-left:6px;vertical-align:middle}
+.sec{font-size:12px;color:var(--sub);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin:16px 0 6px}
+.vrow{display:grid;grid-template-columns:150px 110px 1fr 34px;gap:10px;align-items:start;margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:2px;background:var(--bg)}
+@media(max-width:760px){.vrow{grid-template-columns:1fr 1fr}}
+.vprev{grid-column:1/-1;font-size:12.5px;color:var(--sub);margin-top:-2px}
+.vprev b{color:var(--ink)}
+.mini{font-size:11px;color:var(--sub);margin-bottom:2px;font-weight:700}
+.addbtn{background:#fff;color:var(--ink);border:1px solid var(--ink);border-radius:2px;padding:8px 16px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;cursor:pointer}
+.xbtn{background:none;border:1px solid var(--line);border-radius:2px;color:var(--sub);cursor:pointer;height:38px;width:100%}
+.xtrack{background:none;border:1px solid var(--line);border-radius:2px;color:var(--sub);cursor:pointer;padding:6px 12px;font-size:12px}
+.warn{color:var(--bad);font-size:12.5px;margin-top:8px}
+.bar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:12px 18px;display:flex;justify-content:space-between;align-items:center;gap:14px;box-shadow:0 -2px 8px 1px rgba(1,1,1,.06)}
+.bar .msg{font-size:14px;color:var(--sub)}
+.baractions{display:flex;gap:10px;align-items:center}
+.go{background:var(--ink);color:#fff;border:0;border-radius:2px;padding:10px 22px;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;cursor:pointer}
+.go:disabled{opacity:.4;cursor:not-allowed}
+a.next{color:var(--ink);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:13px;text-decoration:none;border:1px solid var(--ink);border-radius:2px;padding:10px 16px}
+</style></head><body>
+<header>
+  <h1>Track Information Sheet</h1>
+  <p>Step 1 of 2 &mdash; list your tracks and their mix variations, then download the sheet and continue to add credits.</p>
+</header>
+<div class="steps"><span class="on">1 &middot; Track sheet</span><span>2 &middot; Artist &amp; composer credits</span></div>
+<main>
+  <div id="tracks"></div>
+  <button class="addbtn" id="addTrack">+ Add track</button>
+</main>
+<div class="bar">
+  <div class="msg" id="msg">Add a track to begin.</div>
+  <div class="baractions">
+    <button class="go" id="go" disabled>Download track sheet (.xlsx)</button>
+    <a class="next" href="composer.html">Next: credits &rarr;</a>
+  </div>
+</div>
+<script>
+const KEYS=["","C","Am","G","Em","F","Dm","D","Bm","Bb/A#","Gm","A","F#m/Gbm","Eb/D#","Cm","E","C#m/Dbm","Ab/G#","Fm","B","G#m/Abm","Db/C#","Bbm/A#m","Gb/F#","Ebm/D#m","N/A"];
+const METERS=["","2/2","2/4","3/4","4/4","5/4","6/4","7/4","3/8","5/8","6/8","7/8","9/8","10/8","12/8","N/A"];
+const VERSIONS=["","Alternative","Ambient","Direct Intro","Gapped Editor’s Mix","Instrumental","Light","No Choir","No Drums/Percussion","No Synths","Orchestra Only","Rhythm Bed","Sped Up","Stripped Back","Underscore","Vocal"];
+const MIXTYPES=["","60","30","20","15","Bumper","Sting"];
+const TEMPOS=["","Very Slow","Slow","Medium","Fast","Very Fast"];
+function el(t,a={},k=[]){const e=document.createElement(t);for(const x in a){if(x=='class')e.className=a[x];else if(x=='html')e.innerHTML=a[x];else e.setAttribute(x,a[x]);}(Array.isArray(k)?k:[k]).forEach(c=>c&&e.appendChild(typeof c=='string'?document.createTextNode(c):c));return e;}
+function sel(options,val){const s=el('select');options.forEach(o=>{const op=el('option',{value:o},o||'—');if(o===val)op.setAttribute('selected','');s.append(op);});return s;}
+const tracksBox=document.getElementById('tracks');
+let trackNo=0;
+
+function variationRow(initVer){
+  const row=el('div',{class:'vrow'});
+  const ver=sel(VERSIONS,initVer||'');const mix=sel(MIXTYPES,'');const desc=el('input',{type:'text',placeholder:'Description of this variation'});
+  const prev=el('div',{class:'vprev'});
+  const x=el('button',{class:'xbtn',title:'Remove variation'},'✕');
+  x.onclick=()=>{row.remove();update();};
+  [ver,mix,desc].forEach(e=>e.addEventListener('input',update));
+  row.append(
+    el('div',{},[el('div',{class:'mini'},'Version'),ver]),
+    el('div',{},[el('div',{class:'mini'},'Mix Type'),mix]),
+    el('div',{},[el('div',{class:'mini'},'Description'),desc]),
+    el('div',{},[el('div',{class:'mini'},' '),x]),
+    prev);
+  row._get=()=>({version:ver.value,mixType:mix.value,desc:desc.value.trim()});
+  row._prev=prev;
+  return row;
+}
+function trackCard(){
+  trackNo++;
+  const card=el('div',{class:'card'});
+  const head=el('div',{class:'trackhead'});
+  const h=el('h3',{},'Track '+trackNo);
+  const xt=el('button',{class:'xtrack'},'Remove track');xt.onclick=()=>{card.remove();update();};
+  head.append(h,xt);
+  const title=el('input',{type:'text',placeholder:'Track title'});
+  const key=sel(KEYS,'');const bpm=el('input',{type:'text',placeholder:'e.g. 120'});const meter=sel(METERS,'4/4');
+  const tempo=sel(TEMPOS,'Medium');const desc=el('textarea',{placeholder:'Describe the main track'});
+  [title,bpm].forEach(e=>e.addEventListener('input',update));[key,meter,tempo].forEach(e=>e.addEventListener('input',update));
+  const grid=el('div',{class:'tgrid'});
+  grid.append(
+    el('div',{},[el('label',{html:'Title * <span class="mainbadge">Main mix</span>'}),title]),
+    el('div',{},[el('label',{},'Key'),key]),
+    el('div',{},[el('label',{},'BPM'),bpm]),
+    el('div',{},[el('label',{},'Meter'),meter]),
+    el('div',{},[el('label',{},'Tempo'),tempo]));
+  const dwrap=el('div',{style:'margin-top:10px'});dwrap.append(el('label',{},'Description'),desc);
+  const vbox=el('div');
+  desc.addEventListener('input',update);
+  const vAdd=el('button',{class:'addbtn'},'+ Add mix variation');vAdd.onclick=()=>{vbox.append(variationRow());update();};
+  const warn=el('div',{class:'warn'});
+  card.append(head,grid,dwrap,el('div',{class:'sec'},'Mix variations'),
+    el('div',{class:'hint',style:'margin:-2px 0 8px'},'The track above is the “Main” mix. Add its versions / cutdowns below (empty slots are skipped).'),
+    vbox,vAdd,warn);
+  for(let k=0;k<8;k++)vbox.append(variationRow());  // 8 version slots
+  card._get=()=>({title:title.value.trim(),key:key.value,bpm:bpm.value.trim(),meter:meter.value,tempo:tempo.value,desc:desc.value.trim(),
+    variations:[...vbox.children].filter(r=>r._get).map(r=>r._get()), _vrows:[...vbox.children].filter(r=>r._prev)});
+  card._warn=warn;
+  return card;
+}
+document.getElementById('addTrack').onclick=()=>{tracksBox.append(trackCard());update();};
+
+function collect(){return [...tracksBox.children].map(c=>({data:c._get(),warn:c._warn}));}
+function buildRows(t){ // returns array of A-I arrays for one track
+  const base=t.title||'Untitled';const rows=[];
+  // exactly one Main row, built from the track fields + primary description
+  rows.push(['',base,'Main','',t.key,t.bpm,t.meter,t.tempo,t.desc]);
+  let i=2;
+  t.variations.forEach(v=>{if(v.version==='Main')return; // Main handled above
+    if(!(v.version||v.mixType))return;                   // skip empty slots
+    const title=base+' '+i+(v.mixType?' ('+v.mixType+')':'');
+    rows.push(['',title,v.version,v.mixType,t.key,t.bpm,t.meter,t.tempo,v.desc]); i++;});
+  return rows;
+}
+function update(){
+  const tracks=collect();let ok=tracks.length>0;
+  tracks.forEach(({data,warn})=>{
+    // live-preview each variation title
+    let i=2;data._vrows.forEach(r=>{const g=r._get();if(g.version||g.mixType){const title=(data.title||'Untitled')+' '+i+(g.mixType?' ('+g.mixType+')':'');r._prev.innerHTML='&rarr; <b>'+esc(title)+'</b>';i++;}else{r._prev.innerHTML='<span style="color:#6A7170">Empty slot — pick a Version or Mix Type to include it</span>';}});
+    const realVars=data.variations.filter(v=>v.version||v.mixType).length;
+    let msg='';
+    if(!data.title)msg='Needs a title.';
+    else if(realVars===0)msg='Add at least one mix variation or mix type.';
+    warn.textContent=msg;
+    if(msg)ok=false;
+  });
+  document.getElementById('go').disabled=!ok;
+  document.getElementById('msg').textContent = !tracks.length?'Add a track to begin.' : ok?(tracks.length+' track(s) ready — download, then continue to credits.') : 'Each track needs a title and at least one mix variation/type.';
+  try{localStorage.setItem('anTrackTitles',JSON.stringify(tracks.map(t=>t.data.title).filter(Boolean)));}catch(e){}
+}
+function esc(s){return (s==null?'':''+s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+document.getElementById('go').onclick=()=>{
+  if(typeof XLSX==='undefined'){document.getElementById('msg').textContent='Spreadsheet library didn’t load — open this page in a normal browser tab and try again.';return;}
+  const labels=['ID','Title','Version','Mix Type','Key','BPM','Meter','Tempo','Description'];
+  const sys=['id','title','version','Mix Type','musical_key','bpm','meter','tempo','description'];
+  const aoa=[labels,sys];
+  collect().forEach(({data})=>buildRows(data).forEach(r=>aoa.push(r)));
+  const ws=XLSX.utils.aoa_to_sheet(aoa);const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Upload Sheet');
+  try{
+    const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    const blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url=URL.createObjectURL(blob);const a=document.createElement('a');
+    a.href=url;a.download='Track Information Sheet.xlsx';document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1500);
+    document.getElementById('msg').textContent='Downloaded “Track Information Sheet.xlsx”.';
+  }catch(e){document.getElementById('msg').textContent='Download blocked by the preview — open this page in a normal browser tab to save the file.';}
+};
+tracksBox.append(trackCard());update();
+</script></body></html>

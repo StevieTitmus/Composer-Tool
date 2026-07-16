@@ -76,7 +76,7 @@
 
   <div class="card">
     <h2>Tracks that differ <span class="muted">(optional)</span></h2>
-    <p class="hint">Only if some tracks have different artists/contributors from the album-wide details above.</p>
+    <p class="hint" id="excHint">Only if some tracks have different artists/contributors from the album-wide details above.</p>
     <div id="exceptions"></div>
     <button class="addbtn" id="addExc">+ Add a track that differs</button>
   </div>
@@ -100,13 +100,15 @@ const artistMap=new Map(), contactMap=new Map();
 DATA.artists.forEach(a=>{if(!artistMap.has(a.n.toLowerCase()))artistMap.set(a.n.toLowerCase(),a.i)});
 DATA.contacts.forEach(c=>{if(!contactMap.has(c.n.toLowerCase()))contactMap.set(c.n.toLowerCase(),c.i)});
 const instrCanon=new Map();DATA.instruments.forEach(i=>{instrCanon.set(i.toLowerCase(),i)});
+/* track names pulled from Step 1 (track sheet builder), shared via localStorage on the same site */
+let TRACKNAMES=[];try{TRACKNAMES=JSON.parse(localStorage.getItem('anTrackTitles')||'[]');}catch(e){}
 
 function el(tag,attrs={},kids=[]){const e=document.createElement(tag);
   for(const k in attrs){if(k=='class')e.className=attrs[k];else if(k=='html')e.innerHTML=attrs[k];else e.setAttribute(k,attrs[k]);}
   (Array.isArray(kids)?kids:[kids]).forEach(c=>c&&e.appendChild(typeof c=='string'?document.createTextNode(c):c));return e;}
 
 /* ---------- Artist row ---------- */
-function artistRow(){
+function artistRow(initial){
   const wrap=el('div',{class:'row'});
   const nameWrap=el('div');
   const name=el('input',{type:'text',list:'dl-artists',placeholder:'Artist name'});
@@ -124,6 +126,8 @@ function artistRow(){
     else if(id){idtag.textContent='✓ ID '+id;idtag.className='idtag found';name.classList.remove('bad');}
     else{idtag.textContent='Not on list — will be flagged';idtag.className='idtag miss';name.classList.add('bad');}
     update();});
+  if(initial){name.value=initial.name||'';idOut.value=initial.id||'';if(initial.role)role.value=initial.role;
+    if(initial.name){if(initial.id){idtag.textContent='✓ ID '+initial.id;idtag.className='idtag found';}else{idtag.textContent='Not on list — will be flagged';idtag.className='idtag miss';name.classList.add('bad');}}}
   wrap.append(nameWrap,roleWrap,idWrap,xWrap);
   wrap._get=()=>({name:name.value.trim(),id:idOut.value,role:role.value});
   return wrap;
@@ -168,13 +172,16 @@ function contributorRow(){
   return wrap;
 }
 /* ---------- A details block (artists + contributors) ---------- */
-function detailsBlock(container){
+function detailsBlock(container, seedArtists, showHint){
   const aHead=el('h3',{class:'sec'},'Artists'); const aBox=el('div');
-  const aAdd=el('button',{class:'addbtn'},'+ Add artist'); aAdd.onclick=()=>{aBox.append(artistRow());update();};
+  const aHint=el('p',{class:'hint'},'Add every artist credited on the release. The first is usually the main artist — but a release often has more than one Main Artist, so add each one (they are all kept, in addition to the first) and set their role. Use “FeaturedArtist” for featured guests. Composers who perform go in Contributors below.');
+  const aAdd=el('button',{class:'addbtn'},'+ Add another artist'); aAdd.onclick=()=>{aBox.append(artistRow());update();};
   const cHead=el('h3',{class:'sec'},'Contributors (composers, performers, engineers…)'); const cBox=el('div');
   const cAdd=el('button',{class:'addbtn'},'+ Add contributor'); cAdd.onclick=()=>{cBox.append(contributorRow());update();};
-  container.append(aHead,aBox,aAdd,cHead,cBox,cAdd);
-  aBox.append(artistRow()); cBox.append(contributorRow());
+  const kids=[aHead]; if(showHint!==false)kids.push(aHint); kids.push(aBox,aAdd,cHead,cBox,cAdd);
+  container.append(...kids);
+  if(seedArtists&&seedArtists.length)seedArtists.forEach(a=>aBox.append(artistRow(a))); else aBox.append(artistRow());
+  cBox.append(contributorRow());
   return {getArtists:()=>[...aBox.children].map(r=>r._get()), getContribs:()=>[...cBox.children].map(r=>r._get())};
 }
 
@@ -183,14 +190,21 @@ const display={value:''};  /* Display artists moved to the Stitch tool (Music Te
 const albumBlock=detailsBlock(document.getElementById('albumDetails'));
 album.addEventListener('input',update);
 
+/* datalist of track names for the "tracks that differ" picker (from Step 1) */
+const dlTracks=el('datalist',{id:'dl-tracknames'});
+TRACKNAMES.forEach(t=>dlTracks.append(el('option',{value:t})));
+document.body.appendChild(dlTracks);
+if(TRACKNAMES.length){document.getElementById('excHint').textContent='Only if some tracks differ from the album-wide details above. Start typing — the '+TRACKNAMES.length+' track(s) from your track sheet will suggest.';}
+
 /* ---------- Exceptions ---------- */
 const excList=[]; const excWrap=document.getElementById('exceptions');
 document.getElementById('addExc').onclick=()=>{
   const box=el('div',{class:'card exc'});
-  const tn=el('input',{type:'text',placeholder:'Track name / number'});
+  const tn=el('input',{type:'text',list:'dl-tracknames',placeholder:'Track name / number'});
   const x=el('button',{class:'addbtn'},'Remove this track');
-  box.append(el('label',{},'Track that differs'),tn,el('div',{class:'muted',html:'Enter the artists / contributors for just this track:'}));
-  const inner=el('div'); const blk=detailsBlock(inner); box.append(inner,x);
+  const mains=albumBlock.getArtists().filter(a=>a.name&&a.role==='MainArtist');
+  box.append(el('label',{},'Track that differs'),tn,el('div',{class:'muted',html:'Pre-filled with the album’s Main Artist(s). Remove or add artists / contributors so this track matches exactly.'}));
+  const inner=el('div'); const blk=detailsBlock(inner, mains, false); box.append(inner,x);
   excWrap.append(box);
   const rec={track:tn,blk,box}; excList.push(rec);
   x.onclick=()=>{box.remove();excList.splice(excList.indexOf(rec),1);update();};
