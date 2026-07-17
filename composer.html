@@ -138,7 +138,7 @@ function artistRow(initial){
   return wrap;
 }
 /* ---------- Contributor row ---------- */
-function contributorRow(){
+function contributorRow(initial){
   const wrap=el('div',{class:'crow'});
   const top=el('div',{class:'top'});
   const nameWrap=el('div');
@@ -172,12 +172,17 @@ function contributorRow(){
   iInput.addEventListener('blur',commitInstr);
   instr.append(iInput,tags,inote);
   roleBoxes.find(b=>b.value=='Performer').addEventListener('change',e=>{instr.classList.toggle('show',e.target.checked);});
+  if(initial){name.value=initial.name||'';idHidden.value=initial.id||'';
+    if(initial.name){if(initial.id){idtag.textContent='✓ ID '+initial.id;idtag.className='idtag found';}else{idtag.textContent='Not on list — will be flagged';idtag.className='idtag miss';name.classList.add('bad');}}
+    (initial.roles||[]).forEach(rn=>{const cb=roleBoxes.find(b=>b.value===rn);if(cb)cb.checked=true;});
+    (initial.instruments||[]).forEach(it=>{if(chosen.indexOf(it)<0)chosen.push(it);});renderTags();
+    if((initial.roles||[]).indexOf('Performer')>=0)instr.classList.add('show');}
   wrap.append(top,el('label',{},'Role(s) — tick all that apply'),rolesWrap,instr);
   wrap._get=()=>({name:name.value.trim(),id:idHidden.value,roles:roleBoxes.filter(b=>b.checked).map(b=>b.value),instruments:chosen.slice()});
   return wrap;
 }
 /* ---------- A details block (artists + contributors) ---------- */
-function detailsBlock(container, seedArtists, showHint){
+function detailsBlock(container, seedArtists, seedContribs, showHint){
   const aHead=el('h3',{class:'sec'},'Artists'); const aBox=el('div');
   const aHint=el('p',{class:'hint'},'Add every artist credited on the release. The first is usually the main artist — but a release often has more than one Main Artist, so add each one (they are all kept, in addition to the first) and set their role. Use “FeaturedArtist” for featured guests. Composers who perform go in Contributors below.');
   const aAdd=el('button',{class:'addbtn'},'+ Add another artist'); aAdd.onclick=()=>{aBox.append(artistRow());update();};
@@ -186,7 +191,7 @@ function detailsBlock(container, seedArtists, showHint){
   const kids=[aHead]; if(showHint!==false)kids.push(aHint); kids.push(aBox,aAdd,cHead,cBox,cAdd);
   container.append(...kids);
   if(seedArtists&&seedArtists.length)seedArtists.forEach(a=>aBox.append(artistRow(a))); else aBox.append(artistRow());
-  cBox.append(contributorRow());
+  if(seedContribs&&seedContribs.length)seedContribs.forEach(c=>cBox.append(contributorRow(c))); else cBox.append(contributorRow());
   return {getArtists:()=>[...aBox.children].map(r=>r._get()), getContribs:()=>[...cBox.children].map(r=>r._get())};
 }
 
@@ -207,9 +212,10 @@ document.getElementById('addExc').onclick=()=>{
   const box=el('div',{class:'card exc'});
   const tn=el('input',{type:'text',list:'dl-tracknames',placeholder:'Track name / number'});
   const x=el('button',{class:'addbtn'},'Remove this track');
-  const mains=albumBlock.getArtists().filter(a=>a.name&&a.role==='MainArtist');
-  box.append(el('label',{},'Track that differs'),tn,el('div',{class:'muted',html:'Pre-filled with the album’s Main Artist(s). Remove or add artists / contributors so this track matches exactly.'}));
-  const inner=el('div'); const blk=detailsBlock(inner, mains, false); box.append(inner,x);
+  const seedA=albumBlock.getArtists().filter(a=>a.name);
+  const seedC=albumBlock.getContribs().filter(c=>c.name);
+  box.append(el('label',{},'Track that differs'),tn,el('div',{class:'muted',html:'Pre-filled with the album-wide artists, composers &amp; performers. Remove or add so this track matches exactly.'}));
+  const inner=el('div'); const blk=detailsBlock(inner, seedA, seedC, false); box.append(inner,x);
   excWrap.append(box);
   const rec={track:tn,blk,box}; excList.push(rec);
   x.onclick=()=>{box.remove();excList.splice(excList.indexOf(rec),1);update();};
