@@ -88,11 +88,15 @@ function lev(a,b){const m=a.length,n=b.length; if(!m)return n; if(!n)return m;
   for(let i=1;i<=m;i++){cur[0]=i; for(let j=1;j<=n;j++){const c=a[i-1]===b[j-1]?0:1; cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+c);} const t=prev;prev=cur;cur=t;}
   return prev[n];}
 function bestMatch(nameNorm){
-  let best=null,bestScore=-1;
+  const tokens=nameNorm.split(' ');
+  let best=null,bestScore=-1,bestTie=-1e9;
   approvedNorm.forEach((orig,an)=>{
     const d=lev(nameNorm,an); let score=1-d/Math.max(nameNorm.length,an.length,1);
-    if(an.includes(nameNorm)||nameNorm.includes(an)) score=Math.max(score,0.85);
-    if(score>bestScore){bestScore=score;best=orig;}
+    const anTokens=an.split(' ');
+    if(an.startsWith(nameNorm)||nameNorm.startsWith(an)) score=Math.max(score,0.9);            // plurals / truncations
+    else if(tokens.indexOf(an)>=0 || (anTokens.length>1 && nameNorm.indexOf(an)>=0)) score=Math.max(score,0.8); // whole-word contains
+    const tie=-Math.abs(an.length-nameNorm.length)*100-an.length;                              // prefer closest / shortest tag
+    if(score>bestScore || (score===bestScore && tie>bestTie)){best=orig;bestScore=score;bestTie=tie;}
   });
   return {name:best,score:bestScore};
 }
@@ -107,6 +111,10 @@ function checkNames(names){
     if(bm.name && bm.score>=thr) return {file:fn,ext,status:'sug',suggest:bm.name+(ext?'.'+ext:''),score:bm.score,closest:bm.name};
     return {file:fn,ext,status:'no',suggest:'',score:bm.score,closest:bm.name};
   });
+  // de-duplicate: stems that resolve to the same tag get numbered (tag 1, tag 2, …)
+  const groups=new Map();
+  rows.forEach((r,i)=>{ if((r.status==='ok'||r.status==='sug') && r.closest){ if(!groups.has(r.closest))groups.set(r.closest,[]); groups.get(r.closest).push(i); } });
+  groups.forEach((idxs,tag)=>{ if(idxs.length>1){ idxs.forEach((idx,k)=>{ const r=rows[idx]; r.suggest=tag+' '+(k+1)+(r.ext?'.'+r.ext:''); r.status='sug'; r.dup=idxs.length; }); } });
   render();
 }
 function render(){
