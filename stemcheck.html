@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Stem Name Checker — Audio Network</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--ink:#010101;--sub:#6A7170;--line:#E2E2E2;--bg:#F6F6F6;--card:#FFFFFF;--bad:#C0392B;--badbg:#FDECEC;--ok:#1E7D4F;--okbg:#EAF6EF;--warn:#B8860B;--warnbg:#FBF4E6;--shadow:0 2px 8px 1px rgba(1,1,1,.10);}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Brandon Text","Brandon Grotesque","Helvetica Neue",Arial,sans-serif}
+header{background:var(--card);padding:26px;border-bottom:1px solid var(--line);box-shadow:var(--shadow)}
+header h1{margin:0 0 4px;font-size:32px;font-weight:900;letter-spacing:-.01em}
+header p{margin:0;color:var(--sub);font-size:16px}
+main{max-width:1000px;margin:0 auto;padding:22px 18px 120px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:2px;padding:18px;margin:16px 0;box-shadow:var(--shadow)}
+.card h2{margin:0 0 4px;font-size:20px;font-weight:900}
+.hint{margin:0 0 12px;color:var(--sub);font-size:14px}
+textarea{width:100%;min-height:120px;padding:10px;border:1px solid var(--line);border-radius:2px;font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;resize:vertical}
+textarea:focus{outline:none;border-color:var(--ink)}
+.btn{background:#fff;color:var(--ink);border:1px solid var(--ink);border-radius:2px;padding:9px 16px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;display:inline-block}
+.btn.solid{background:var(--ink);color:#fff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.row{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:10px}
+label.file{cursor:pointer}
+input[type=file]{display:none}
+.count{font-size:13px;color:var(--sub)}
+table{width:100%;border-collapse:collapse;margin-top:8px;font-size:14px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--sub)}
+tr.ok td.st{color:var(--ok);font-weight:700}
+.pill{display:inline-block;padding:2px 8px;border-radius:2px;font-size:12px;font-weight:700}
+.pill.ok{background:var(--okbg);color:var(--ok)} .pill.sug{background:var(--warnbg);color:var(--warn)} .pill.no{background:var(--badbg);color:var(--bad)}
+.sug-name{font-weight:700}
+.summary{display:flex;gap:18px;flex-wrap:wrap;margin:8px 0 0;font-size:14px}
+.summary b{font-size:18px}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+.ctrl{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--sub)}
+.bar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:12px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;box-shadow:0 -2px 8px 1px rgba(1,1,1,.06)}
+.bar .msg{font-size:14px;color:var(--sub)}
+</style></head><body>
+<header>
+  <h1>Stem Name Checker</h1>
+  <p>Check stem file names against the approved list &mdash; nothing is uploaded, only the file names are read.</p>
+</header>
+<main>
+  <div class="card">
+    <h2>Your stems</h2>
+    <p class="hint">Choose the stem files &mdash; they&rsquo;re checked against the approved Audio Network tag list (<span id="approvedCount">604</span> tags). Only the names are read; the audio never leaves your computer, so file size doesn&rsquo;t matter.</p>
+    <div class="row">
+      <label class="file btn solid">Choose files<input type="file" id="files" multiple/></label>
+      <span class="ctrl">Match sensitivity
+        <input type="range" id="thresh" min="0.3" max="0.9" step="0.05" value="0.6"/>
+        <span id="threshVal">0.60</span></span>
+    </div>
+  </div>
+
+  <div class="card" id="resultsCard" style="display:none">
+    <h2>Results</h2>
+    <div class="summary" id="summary"></div>
+    <table id="results"><thead><tr><th>File name</th><th>Status</th><th>Suggested name</th><th>Closest approved (score)</th></tr></thead><tbody></tbody></table>
+  </div>
+</main>
+
+<div class="bar">
+  <div class="msg" id="msg">Choose your stem files to check.</div>
+  <button class="btn" id="dlReport" disabled>Download report (.xlsx)</button>
+</div>
+
+<script>
+const SAMPLE=["808","aah","accompaniment","accordion","acoustic","acoustic-banjo","acoustic-bass","acoustic-beat","acoustic-flute","acoustic-fx","acoustic-guitar","acoustic-keyboard","acoustic-keys","acoustic-lead","acoustic-lead-guitar","acoustic-lead-vocal","acoustic-loop","acoustic-mandolin","acoustic-melody","acoustic-percussion","acoustic-piano","acoustic-rhythm","acoustic-rhythm-guitar","acoustic-slide","acoustic-solo","acoustic-solo-banjo","acoustic-solo-guitar","acoustic-string","acoustic-tambourine","acoustic-vocal","acoustic-wind","ad-lib","agogo","alto","ambience","announcer","answer","anvil","applause","arp","atmo","atmospheres","backing","backing-guitar","backing-vocals","balafon","bamboo","bandolin","banjo","barbat","bari","baritone","bas","baskets","bass","bass-bassoon","bass-clarinet","bass-flute","bass-horn","bass-sax","bass-tuba","bassoon","bata","bawu","bazooka","beat","bell","berimbau","bipa","bird","birds","bones","bongo","bop","bouzaki","bowel","bowl","bows-blows","braam","braams","brass","breakdown","breaks","breath","bridge","brushes","bucket","bullroarer","cavaquinho","caxixi","celeste","cello","chains","chant","chants","charangos","chime","choir","chops","chord","chorus","cimbala","clap","clarinet","clavinet","click","clicks","clock","clocks","conga","contra","cornett","cowbell","crescendo","crowds","cuica","cumbus","cuts","cycles","cymbal","decks","descant","dhol","didgeridoo","distort","dj","djembe","done","downer","drm","drone","droplets","drops","drums","dulcimer","echo","electric","electric-bass","electric-cello","electric-guitar","electric-lead","electric-lead-guitar","electric-melody","electric-percussion","electric-piano","electric-rhythm-guitar","electric-solo","electric-solo-guitar","electric-violin","electronics","element","end","english","ensemble","fiddle","flexatone","flute","flutter","folk","frame","french-air","frogs","fuzz","fx","fx-riser","gaida","gamelan","gasps","ghatam","glasses","glide","glitches","glockenspiel","gong","gourd","gran-cassa","grinders","groove","grooves","guarura","guitar","guqin","hands","hang","hang-drum","hangs","harmonica","harmonico","harmonics","harmonics-2","harp","harpsichord","hey","hi","hi-arp","hi-drone","hi-hat","hi-hats","hi-lead-synth","hi-pad","hi-percussion","hi-piano","hi-pulse","hi-stab","hi-synth","hit","hook","hooks","horn","humming","hurdygurdy","igil","instruments","interference","intro","japanese","kanjira","kantele","kaval","kazoo","kemenche","keybds","keys","khim","kick","kids","kits","knocking","laugh","lead","lead-1","lead-2","lead-acoustic","lead-acoustic-guitar","lead-arp","lead-bass","lead-bell","lead-brass","lead-cello","lead-choir","lead-chord","lead-clarinet","lead-cymbal","lead-drum","lead-electric","lead-electric-guitar","lead-element","lead-flute","lead-fx","lead-guitar","lead-harmonica","lead-horn","lead-instrument","lead-keyboard","lead-keys","lead-marimba","lead-melody","lead-orchestra","lead-organ","lead-pad","lead-percussion","lead-piano","lead-pluck","lead-pulse","lead-rhodes","lead-sax","lead-shaker","lead-shamisen","lead-solo","lead-solo-guitar","lead-solo-vocal","lead-stab","lead-string","lead-synth","lead-tom","lead-trombone","lead-trumpet","lead-violin","lead-vocal","lead-wind","lead-woodwind","leader","leona","leslie","litophone","long-pad","long-string","long-synth","long-vocal","loom","loop","low","low-arp","low-brass","low-drone","low-drum","low-hit","low-pad","low-percussion","low-piano","low-pulse","low-string","low-synth","lvs","lyre","main-arp","main-bass","main-chord","main-guitar","main-harp","main-hit","main-keys","main-kick","main-lead","main-loop","main-melody","main-pad","main-percussion","main-piano","main-pulse","main-rhythm-guitar","main-string","main-synth","main-vocal","mallet","mandolin","marimba","melodeon","melody","metal","mirwas","miscellaneous","motif","motifs","motor","mugs","music-box","musicbox","mute-rakes","muzik","nexus","noise","noises","nylon","oboe","ocarina","omni","omnichord","ondes-martenot","ooh","orchestra","organ","ostinato","ostinato-1","ostinato-2","ostinato-3","ostinato-4","others","oud","pan-flute","pans","parai","pedal-steel-guitar","pedals","percussion","phones","piano","piatti","piccolo","pipa","pipes","pizzicato","pluck","programmed-strings","puddle","pulse","pulsing","quinto","rap","recorder","recorders","reece","repique","resonance","reverse","reverses","rhodes","rhythm","rhythm-1","rhythm-2","rhythm-acoustic","rhythm-acoustic-guitar","rhythm-banjo","rhythm-bass","rhythm-brass","rhythm-cello","rhythm-cymbal","rhythm-drum","rhythm-electric","rhythm-electric-guitar","rhythm-flute","rhythm-fx","rhythm-guitar","rhythm-harp","rhythm-keys","rhythm-kick","rhythm-lead-arp","rhythm-lead-synth","rhythm-marimba","rhythm-organ","rhythm-pad","rhythm-percussion","rhythm-piano","rhythm-pulse","rhythm-section","rhythm-shaker","rhythm-shamisen","rhythm-solo","rhythm-string","rhythm-synth","rhythm-vibes","rhythm-vocal","rhythm-woodwind","rhythmic","ride","rider","riders","rims","riser","roar","rolls","room","ruan","rumble","sample","sampler","sarangi","saturation","sax","scissor","scrapes","scratch","screech","seagulls","shaker","shakes","shakuhachi","shamisen","shekere","shells","shepard-tone","shepard-tones","shimmer","shkrs","short-brass","short-hi-brass","short-low-brass","short-rhythm","short-string","short-synth","shout","shouts","side-chain","signal","sine","sitar","slams","slide","slide-guitar","slides","snare","solo","solo-2","solo-accordion","solo-banjo","solo-bass","solo-bassoon","solo-brass","solo-cello","solo-clarinet","solo-drum","solo-electric","solo-electric-guitar","solo-element","solo-flute","solo-fx","solo-guitar","solo-harp","solo-horn","solo-instrument","solo-keys","solo-kick","solo-percussion","solo-piano","solo-riser","solo-sax","solo-snare","solo-string","solo-synth","solo-trombone","solo-trumpet","solo-viola","solo-violin","solo-vocal","solo-whistle","solo-woodwind","soprano","sound-design","sousa","spanish","spoon","spoons","springs","stab","steel","stems","stinger","string","stutter","sub","sub-2","sub-bass","sub-drone","sub-fx","sub-hit","sub-percussion","subs","suona","sustain","sweep","sweeps","swell","synth-bass","synth-lead","synthesizer","tabla","tabs","taiko","tam","tambourine","tamtam","tape","tapes","tenor","tenora","terra","texture","throat-singing","ticking","timbales","timpani","ting","tom","tombak","tone","tones","topline","toys","tps","tres","triangle","tro","trombone","trumpet","tuba","tube","tubular","tubular-bells","tune","tuned-percussion","upright","venus","vibes","vibraphone","vibraslap","vinyl","viola","violin","vocal","vocal-fx","voiceover","wah","wail","wash","waterphone","waters","whip","whistle","whistling","wind","woodblock","woodwind","woosh","wooshes","wurlitzer","xiao","xtra","xylo","xylophone","xylorimba","yangqin","zampona","zill","zurna"];
+const $=id=>document.getElementById(id);
+window.addEventListener('error',e=>{try{$('msg').textContent='Script error: '+(e.message||e.error);}catch(_){}});
+
+/* ---- state (declared before anything uses it) ---- */
+let approvedNorm=new Map(), rows=[];
+
+function norm(s){return s.toLowerCase().replace(/\.[a-z0-9]+$/,'').replace(/[_\-.]+/g,' ').replace(/\s+/g,' ').trim();}
+function esc(s){return (s==null?'':''+s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function extOf(n){const m=n.match(/\.([a-z0-9]+)$/i); return m?m[1]:'';}
+
+/* ---- approved list (baked in, fixed) ---- */
+function buildApproved(){
+  approvedNorm=new Map(); SAMPLE.forEach(a=>{const n=norm(a); if(!approvedNorm.has(n))approvedNorm.set(n,a);});
+  const c=$('approvedCount'); if(c)c.textContent=approvedNorm.size;
+}
+
+/* ---- fuzzy matching ---- */
+function lev(a,b){const m=a.length,n=b.length; if(!m)return n; if(!n)return m;
+  let prev=Array.from({length:n+1},(_,i)=>i),cur=new Array(n+1);
+  for(let i=1;i<=m;i++){cur[0]=i; for(let j=1;j<=n;j++){const c=a[i-1]===b[j-1]?0:1; cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+c);} const t=prev;prev=cur;cur=t;}
+  return prev[n];}
+function bestMatch(nameNorm){
+  let best=null,bestScore=-1;
+  approvedNorm.forEach((orig,an)=>{
+    const d=lev(nameNorm,an); let score=1-d/Math.max(nameNorm.length,an.length,1);
+    if(an.includes(nameNorm)||nameNorm.includes(an)) score=Math.max(score,0.85);
+    if(score>bestScore){bestScore=score;best=orig;}
+  });
+  return {name:best,score:bestScore};
+}
+
+/* ---- checking ---- */
+function checkNames(names){
+  const thr=parseFloat($('thresh').value);
+  rows=names.map(fn=>{
+    const ext=extOf(fn); const nn=norm(fn);
+    if(approvedNorm.has(nn)) return {file:fn,ext,status:'ok',suggest:approvedNorm.get(nn),score:1,closest:approvedNorm.get(nn)};
+    const bm=bestMatch(nn);
+    if(bm.name && bm.score>=thr) return {file:fn,ext,status:'sug',suggest:bm.name+(ext?'.'+ext:''),score:bm.score,closest:bm.name};
+    return {file:fn,ext,status:'no',suggest:'',score:bm.score,closest:bm.name};
+  });
+  render();
+}
+function render(){
+  if(!rows.length){$('resultsCard').style.display='none';return;}
+  $('resultsCard').style.display='';
+  const tb=$('results').querySelector('tbody'); tb.innerHTML='';
+  let ok=0,sug=0,no=0;
+  rows.forEach(r=>{
+    if(r.status==='ok')ok++; else if(r.status==='sug')sug++; else no++;
+    const tr=document.createElement('tr'); tr.className=r.status;
+    const label=r.status==='ok'?'<span class="pill ok">OK</span>':r.status==='sug'?'<span class="pill sug">Suggest</span>':'<span class="pill no">No match</span>';
+    const sc=(r.score>0?(r.score*100).toFixed(0)+'%':'—');
+    tr.innerHTML='<td class="mono">'+esc(r.file)+'</td><td class="st">'+label+'</td>'+
+      '<td class="mono sug-name">'+(r.status==='sug'?esc(r.suggest):(r.status==='ok'?'✓':'—'))+'</td>'+
+      '<td>'+(r.closest?esc(r.closest)+' <span class="count">('+sc+')</span>':'—')+'</td>';
+    tb.appendChild(tr);
+  });
+  $('summary').innerHTML='<span><b>'+rows.length+'</b> files</span><span style="color:var(--ok)"><b>'+ok+'</b> OK</span><span style="color:var(--warn)"><b>'+sug+'</b> suggested</span><span style="color:var(--bad)"><b>'+no+'</b> no match</span>';
+  $('dlReport').disabled=false;
+  $('msg').textContent=rows.length+' file(s) checked — '+ok+' OK, '+sug+' to review, '+no+' unmatched.';
+  try{$('resultsCard').scrollIntoView({behavior:'smooth',block:'start'});}catch(_){}
+}
+
+/* ---- inputs ---- */
+function gather(fileList){
+  try{
+    const names=[...(fileList||[])].map(f=>f.name).filter(n=>n && !n.startsWith('.'));
+    if(!names.length){$('msg').textContent='No file names were read — click “Choose files” and select the stems.';return;}
+    $('msg').textContent='Read '+names.length+' file name(s)…';
+    checkNames(names);
+  }catch(err){$('msg').textContent='Error reading files: '+err.message;}
+}
+$('files').addEventListener('change',e=>gather(e.target.files));
+$('thresh').addEventListener('input',()=>{$('threshVal').textContent=parseFloat($('thresh').value).toFixed(2); if(rows.length)checkNames(rows.map(r=>r.file));});
+
+/* ---- export report ---- */
+$('dlReport').onclick=()=>{
+  if(typeof XLSX==='undefined'){$('msg').textContent='Spreadsheet library didn’t load — open in a normal browser tab.';return;}
+  const aoa=[['File name','Status','Suggested name','Closest approved','Score %']];
+  rows.forEach(r=>aoa.push([r.file, r.status==='ok'?'OK':r.status==='sug'?'Suggest':'No match', r.status==='sug'?r.suggest:'', r.closest||'', r.score>0?(r.score*100).toFixed(0):'']));
+  const ws=XLSX.utils.aoa_to_sheet(aoa),wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Stem check');
+  const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+  const blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download='stem_name_report.xlsx';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove();},1500);
+};
+
+/* ---- init (runs last, after everything is defined) ---- */
+buildApproved();
+</script></body></html>
