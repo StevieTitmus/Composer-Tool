@@ -78,7 +78,9 @@ tr.ok td.st{color:var(--ok);font-weight:700}
 <div id="shOverlay" class="overlay" style="display:none">
   <div class="modal">
     <h3>Bash rename script</h3>
-    <p class="hint"><b>Don&rsquo;t paste this straight into Terminal</b> &mdash; save it to a file first. Easiest on Mac: click <b>Copy</b>, then in Terminal run<br><span class="mono">cd "your-folder" &amp;&amp; pbpaste &gt; rename_stems.sh &amp;&amp; bash rename_stems.sh</span><br>(<span class="mono">pbpaste</span> writes your clipboard to the file, then runs it.) Browsers usually block downloading <span class="mono">.sh</span> files, so copying is the reliable route.</p>
+    <label style="font-size:13px;font-weight:700;display:block;margin:0 0 4px">Folder path (recommended)</label>
+    <input id="shPath" type="text" placeholder="/Users/you/Documents/REMIX STEMS" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:2px;font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;margin:0 0 10px"/>
+    <p class="hint">Paste the full path of the folder you selected (tip: drag the folder from Finder into a Terminal window to reveal it). The script will <span class="mono">cd</span> there, so it works no matter where the <span class="mono">.sh</span> lives. Leave it blank only if you save the script <b>inside</b> that folder. Then: <b>Copy</b>, and in Terminal run <span class="mono">pbpaste &gt; rename_stems.sh &amp;&amp; bash rename_stems.sh</span> &mdash; don&rsquo;t paste the script straight into Terminal.</p>
     <textarea id="shText" readonly spellcheck="false"></textarea>
     <div class="row">
       <button class="btn solid" id="shCopy">Copy to clipboard</button>
@@ -191,6 +193,9 @@ function gather(fileList){
     const items=all.filter(f=>{const e=extOf(f.name).toLowerCase(); return e && AUDIO_EXT.has(e);}).map(f=>({name:f.name,dir:relDir(f)}));
     const skipped=all.length-items.length;
     if(!items.length){$('msg').textContent='No audio files found'+(skipped?' ('+skipped+' non-audio skipped)':'')+' — choose a folder or the stem files.';rows=[];render();return;}
+    // sort alphabetically within each folder (numeric-aware, case-insensitive) for easier QA
+    const coll=(x,y)=>(''+x).localeCompare(''+y,undefined,{numeric:true,sensitivity:'base'});
+    items.sort((a,b)=>coll(a.dir,b.dir)||coll(a.name,b.name));
     $('msg').textContent='Read '+items.length+' audio file(s)'+(skipped?' ('+skipped+' non-audio skipped)':'')+'…';
     lastItems=items; manual=new Map();
     checkFiles(items,true);
@@ -214,13 +219,19 @@ $('dlReport').onclick=()=>{
 /* ---- rename script (Bash) ---- */
 function shQuote(s){return "'"+String(s).split("'").join("'\\''")+"'";}
 function stripRoot(dir){ if(!dir)return ''; const p=dir.split('/'); return p.length>1?p.slice(1).join('/'):''; }
+function cdLine(){
+  const p=$('shPath')?$('shPath').value.trim():'';
+  if(!p)return 'cd "$(dirname "$0")" || exit 1';
+  if(p==='~')return 'cd "$HOME" || exit 1';
+  if(p.startsWith('~/'))return 'cd "$HOME/'+p.slice(2).replace(/"/g,'\\"')+'" || exit 1';
+  return 'cd '+shQuote(p)+' || exit 1';
+}
 function buildScript(){
-  const lines=['#!/usr/bin/env bash',
-    '# Renames stems to the suggested approved names.',
-    '# Save this file INSIDE the folder you selected, then run:  bash rename_stems.sh',
-    '# It renames relative to its own location, so it works wherever you saved it.',
+  const p=$('shPath')?$('shPath').value.trim():'';
+  const lines=['#!/usr/bin/env bash','# Renames stems to the suggested approved names.',
+    p?'# Runs in the folder path entered in the tool.':'# Save this file INSIDE the folder you selected, then run:  bash rename_stems.sh',
     '# "-n" means an existing file is never overwritten.',
-    'cd "$(dirname "$0")" || exit 1'];
+    cdLine()];
   let n=0;
   rows.forEach(r=>{ if(r.status==='sug' && r.suggest && r.suggest!==r.file){
     const sub=stripRoot(r.dir); const oldp=(sub?sub+'/':'')+r.file; const newp=(sub?sub+'/':'')+r.suggest;
@@ -230,12 +241,9 @@ function buildScript(){
   else lines.push('echo "Done — '+n+' file(s) processed. Review the results."');
   return {text:lines.join('\n')+'\n', n};
 }
-$('dlBash').onclick=()=>{
-  const {text,n}=buildScript();
-  $('shText').value=text;
-  $('shMsg').textContent=n+' rename'+(n===1?'':'s');
-  $('shOverlay').style.display='flex';
-};
+function renderScript(){const {text,n}=buildScript(); $('shText').value=text; $('shMsg').textContent=n+' rename'+(n===1?'':'s');}
+$('dlBash').onclick=()=>{ renderScript(); $('shOverlay').style.display='flex'; };
+$('shPath').addEventListener('input',renderScript);
 $('shCopy').onclick=async()=>{
   const t=$('shText').value;
   try{ await navigator.clipboard.writeText(t); $('shMsg').textContent='Copied to clipboard ✓'; }
