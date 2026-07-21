@@ -29,12 +29,18 @@ tr.ok td.st{color:var(--ok);font-weight:700}
 .pill{display:inline-block;padding:2px 8px;border-radius:2px;font-size:12px;font-weight:700}
 .pill.ok{background:var(--okbg);color:var(--ok)} .pill.sug{background:var(--warnbg);color:var(--warn)} .pill.no{background:var(--badbg);color:var(--bad)}
 .sug-name{font-weight:700}
+.pick{padding:5px 7px;border:1px solid var(--ink);border-radius:2px;font-size:13px;width:160px;font-family:inherit}
+.pick:focus{outline:none}
 .summary{display:flex;gap:18px;flex-wrap:wrap;margin:8px 0 0;font-size:14px}
 .summary b{font-size:18px}
 .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
 .ctrl{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--sub)}
 .bar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:12px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;box-shadow:0 -2px 8px 1px rgba(1,1,1,.06)}
 .bar .msg{font-size:14px;color:var(--sub)}
+.overlay{position:fixed;inset:0;background:rgba(1,1,1,.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
+.modal{background:#fff;border-radius:2px;max-width:760px;width:100%;padding:20px;box-shadow:var(--shadow)}
+.modal h3{margin:0 0 6px;font-size:18px;font-weight:900}
+.modal textarea{min-height:240px}
 </style></head><body>
 <header>
   <h1>Stem Name Checker</h1>
@@ -43,9 +49,10 @@ tr.ok td.st{color:var(--ok);font-weight:700}
 <main>
   <div class="card">
     <h2>Your stems</h2>
-    <p class="hint">Choose the stem files &mdash; they&rsquo;re checked against the approved Audio Network tag list (<span id="approvedCount">604</span> tags). Only the names are read; the audio never leaves your computer, so file size doesn&rsquo;t matter.</p>
+    <p class="hint">Choose a folder (all sub-folders are included) or individual files &mdash; checked against the approved Audio Network tag list (<span id="approvedCount">604</span> tags). Only the names are read; the audio never leaves your computer. Duplicate names are numbered within each folder.</p>
     <div class="row">
-      <label class="file btn solid">Choose files<input type="file" id="files" multiple/></label>
+      <label class="file btn solid">Choose folder<input type="file" id="folder" webkitdirectory directory multiple/></label>
+      <label class="file btn">Choose files<input type="file" id="files" multiple/></label>
       <span class="ctrl">Match sensitivity
         <input type="range" id="thresh" min="0.3" max="0.9" step="0.05" value="0.6"/>
         <span id="threshVal">0.60</span></span>
@@ -55,13 +62,31 @@ tr.ok td.st{color:var(--ok);font-weight:700}
   <div class="card" id="resultsCard" style="display:none">
     <h2>Results</h2>
     <div class="summary" id="summary"></div>
-    <table id="results"><thead><tr><th>File name</th><th>Status</th><th>Suggested name</th><th>Closest approved (score)</th></tr></thead><tbody></tbody></table>
+    <table id="results"><thead><tr><th>Folder</th><th>File name</th><th>Status</th><th>Suggested name</th><th>Closest approved (score)</th></tr></thead><tbody></tbody></table>
   </div>
 </main>
+<datalist id="dlApproved"></datalist>
 
 <div class="bar">
   <div class="msg" id="msg">Choose your stem files to check.</div>
-  <button class="btn" id="dlReport" disabled>Download report (.xlsx)</button>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <button class="btn" id="dlReport" disabled>Download report (.xlsx)</button>
+    <button class="btn" id="dlBash" disabled>Rename script (Bash)</button>
+  </div>
+</div>
+
+<div id="shOverlay" class="overlay" style="display:none">
+  <div class="modal">
+    <h3>Bash rename script</h3>
+    <p class="hint"><b>Don&rsquo;t paste this straight into Terminal</b> &mdash; save it to a file first. Easiest on Mac: click <b>Copy</b>, then in Terminal run<br><span class="mono">cd "your-folder" &amp;&amp; pbpaste &gt; rename_stems.sh &amp;&amp; bash rename_stems.sh</span><br>(<span class="mono">pbpaste</span> writes your clipboard to the file, then runs it.) Browsers usually block downloading <span class="mono">.sh</span> files, so copying is the reliable route.</p>
+    <textarea id="shText" readonly spellcheck="false"></textarea>
+    <div class="row">
+      <button class="btn solid" id="shCopy">Copy to clipboard</button>
+      <button class="btn" id="shDl">Try download (.sh)</button>
+      <button class="btn" id="shClose">Close</button>
+      <span class="count" id="shMsg"></span>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -70,7 +95,8 @@ const $=id=>document.getElementById(id);
 window.addEventListener('error',e=>{try{$('msg').textContent='Script error: '+(e.message||e.error);}catch(_){}});
 
 /* ---- state (declared before anything uses it) ---- */
-let approvedNorm=new Map(), rows=[];
+let approvedNorm=new Map(), rows=[], lastItems=[], manual=new Map();
+const AUDIO_EXT=new Set(['wav','aif','aiff','flac','mp3','m4a','ogg','aac','wma','caf','aifc','w64','rf64']);
 
 function norm(s){return s.toLowerCase().replace(/\.[a-z0-9]+$/,'').replace(/[_\-.]+/g,' ').replace(/\s+/g,' ').trim();}
 function esc(s){return (s==null?'':''+s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -80,6 +106,7 @@ function extOf(n){const m=n.match(/\.([a-z0-9]+)$/i); return m?m[1]:'';}
 function buildApproved(){
   approvedNorm=new Map(); SAMPLE.forEach(a=>{const n=norm(a); if(!approvedNorm.has(n))approvedNorm.set(n,a);});
   const c=$('approvedCount'); if(c)c.textContent=approvedNorm.size;
+  const dl=$('dlApproved'); if(dl){dl.innerHTML=''; SAMPLE.forEach(t=>{const o=document.createElement('option');o.value=t;dl.appendChild(o);});}
 }
 
 /* ---- fuzzy matching ---- */
@@ -102,64 +129,126 @@ function bestMatch(nameNorm){
 }
 
 /* ---- checking ---- */
-function checkNames(names){
+function checkFiles(items,scroll){
   const thr=parseFloat($('thresh').value);
-  rows=names.map(fn=>{
-    const ext=extOf(fn); const nn=norm(fn);
-    if(approvedNorm.has(nn)) return {file:fn,ext,status:'ok',suggest:approvedNorm.get(nn),score:1,closest:approvedNorm.get(nn)};
-    const bm=bestMatch(nn);
-    if(bm.name && bm.score>=thr) return {file:fn,ext,status:'sug',suggest:bm.name+(ext?'.'+ext:''),score:bm.score,closest:bm.name};
-    return {file:fn,ext,status:'no',suggest:'',score:bm.score,closest:bm.name};
+  rows=items.map(it=>{
+    const fn=it.name, ext=extOf(fn), nn=norm(fn); let r;
+    if(approvedNorm.has(nn)) r={file:fn,ext,status:'ok',suggest:approvedNorm.get(nn),score:1,closest:approvedNorm.get(nn)};
+    else{ const bm=bestMatch(nn);
+      if(bm.name && bm.score>=thr) r={file:fn,ext,status:'sug',suggest:bm.name+(ext?'.'+ext:''),score:bm.score,closest:bm.name};
+      else r={file:fn,ext,status:'no',suggest:'',score:bm.score,closest:bm.name};
+    }
+    r.dir=it.dir||''; return r;
   });
-  // de-duplicate: stems that resolve to the same tag get numbered (tag 1, tag 2, …)
+  // apply manual picks (chosen for a no-match) before numbering
+  rows.forEach(r=>{ const mk=r.dir+' '+r.file; if(manual.has(mk)){ const tag=manual.get(mk); r.closest=tag; r.status='sug'; r.suggest=tag+(r.ext?'.'+r.ext:''); r.score=1; r.manual=true; } });
+  // de-duplicate WITHIN each folder: stems resolving to the same tag get numbered (tag 1, tag 2, …)
   const groups=new Map();
-  rows.forEach((r,i)=>{ if((r.status==='ok'||r.status==='sug') && r.closest){ if(!groups.has(r.closest))groups.set(r.closest,[]); groups.get(r.closest).push(i); } });
-  groups.forEach((idxs,tag)=>{ if(idxs.length>1){ idxs.forEach((idx,k)=>{ const r=rows[idx]; r.suggest=tag+' '+(k+1)+(r.ext?'.'+r.ext:''); r.status='sug'; r.dup=idxs.length; }); } });
-  render();
+  rows.forEach((r,i)=>{ if((r.status==='ok'||r.status==='sug') && r.closest){ const key=r.dir+' '+r.closest; if(!groups.has(key))groups.set(key,[]); groups.get(key).push(i); } });
+  groups.forEach(idxs=>{ if(idxs.length>1){ idxs.forEach((idx,k)=>{ const r=rows[idx]; r.suggest=r.closest+' '+(k+1)+(r.ext?'.'+r.ext:''); r.status='sug'; r.dup=idxs.length; }); } });
+  render(scroll);
 }
-function render(){
+function onPick(e){
+  const inp=e.target, i=+inp.dataset.idx, r=rows[i]; if(!r)return;
+  const key=r.dir+' '+r.file, v=inp.value.trim();
+  if(!v){ manual.delete(key); }
+  else{ const canon=approvedNorm.get(norm(v)); if(canon){manual.set(key,canon);} else {inp.value='';manual.delete(key);$('msg').textContent='“'+v+'” isn’t an approved tag — pick from the list.';} }
+  checkFiles(lastItems,false);
+}
+function render(scroll){
   if(!rows.length){$('resultsCard').style.display='none';return;}
   $('resultsCard').style.display='';
   const tb=$('results').querySelector('tbody'); tb.innerHTML='';
   let ok=0,sug=0,no=0;
-  rows.forEach(r=>{
-    if(r.status==='ok')ok++; else if(r.status==='sug')sug++; else no++;
-    const tr=document.createElement('tr'); tr.className=r.status;
-    const label=r.status==='ok'?'<span class="pill ok">OK</span>':r.status==='sug'?'<span class="pill sug">Suggest</span>':'<span class="pill no">No match</span>';
+  rows.forEach((r,i)=>{
+    if(r.manual){sug++;} else if(r.status==='ok'){ok++;} else if(r.status==='sug'){sug++;} else {no++;}
+    const tr=document.createElement('tr'); tr.className=r.manual?'sug':r.status;
+    const label=r.manual?'<span class="pill sug">Chosen</span>':r.status==='ok'?'<span class="pill ok">OK</span>':r.status==='sug'?'<span class="pill sug">Suggest</span>':'<span class="pill no">No match</span>';
     const sc=(r.score>0?(r.score*100).toFixed(0)+'%':'—');
-    tr.innerHTML='<td class="mono">'+esc(r.file)+'</td><td class="st">'+label+'</td>'+
-      '<td class="mono sug-name">'+(r.status==='sug'?esc(r.suggest):(r.status==='ok'?'✓':'—'))+'</td>'+
-      '<td>'+(r.closest?esc(r.closest)+' <span class="count">('+sc+')</span>':'—')+'</td>';
+    let sugCell;
+    if(r.status==='no' || r.manual){
+      sugCell='<input class="pick" list="dlApproved" data-idx="'+i+'" value="'+esc(r.manual?r.closest:'')+'" placeholder="pick a tag…"/>'+(r.manual?' <span class="count">&rarr; '+esc(r.suggest)+'</span>':'');
+    } else { sugCell=r.status==='sug'?esc(r.suggest):'✓'; }
+    tr.innerHTML='<td class="mono count">'+esc(r.dir||'—')+'</td><td class="mono">'+esc(r.file)+'</td><td class="st">'+label+'</td>'+
+      '<td class="mono sug-name">'+sugCell+'</td>'+
+      '<td>'+(r.manual?'<span class="count">chosen</span>':(r.closest?esc(r.closest)+' <span class="count">('+sc+')</span>':'—'))+'</td>';
     tb.appendChild(tr);
   });
-  $('summary').innerHTML='<span><b>'+rows.length+'</b> files</span><span style="color:var(--ok)"><b>'+ok+'</b> OK</span><span style="color:var(--warn)"><b>'+sug+'</b> suggested</span><span style="color:var(--bad)"><b>'+no+'</b> no match</span>';
+  tb.querySelectorAll('input.pick').forEach(inp=>inp.addEventListener('change',onPick));
+  const folders=new Set(rows.map(r=>r.dir||'')).size;
+  $('summary').innerHTML='<span><b>'+rows.length+'</b> files</span><span><b>'+folders+'</b> folder(s)</span><span style="color:var(--ok)"><b>'+ok+'</b> OK</span><span style="color:var(--warn)"><b>'+sug+'</b> suggested</span><span style="color:var(--bad)"><b>'+no+'</b> no match</span>';
   $('dlReport').disabled=false;
+  $('dlBash').disabled = sug===0;
   $('msg').textContent=rows.length+' file(s) checked — '+ok+' OK, '+sug+' to review, '+no+' unmatched.';
-  try{$('resultsCard').scrollIntoView({behavior:'smooth',block:'start'});}catch(_){}
+  if(scroll){try{$('resultsCard').scrollIntoView({behavior:'smooth',block:'start'});}catch(_){}}
 }
 
 /* ---- inputs ---- */
+function relDir(f){const p=f.webkitRelativePath||''; if(!p)return ''; const parts=p.split('/'); parts.pop(); return parts.join('/');}
 function gather(fileList){
   try{
-    const names=[...(fileList||[])].map(f=>f.name).filter(n=>n && !n.startsWith('.'));
-    if(!names.length){$('msg').textContent='No file names were read — click “Choose files” and select the stems.';return;}
-    $('msg').textContent='Read '+names.length+' file name(s)…';
-    checkNames(names);
+    const all=[...(fileList||[])].filter(f=>f.name && !f.name.startsWith('.'));
+    const items=all.filter(f=>{const e=extOf(f.name).toLowerCase(); return e && AUDIO_EXT.has(e);}).map(f=>({name:f.name,dir:relDir(f)}));
+    const skipped=all.length-items.length;
+    if(!items.length){$('msg').textContent='No audio files found'+(skipped?' ('+skipped+' non-audio skipped)':'')+' — choose a folder or the stem files.';rows=[];render();return;}
+    $('msg').textContent='Read '+items.length+' audio file(s)'+(skipped?' ('+skipped+' non-audio skipped)':'')+'…';
+    lastItems=items; manual=new Map();
+    checkFiles(items,true);
   }catch(err){$('msg').textContent='Error reading files: '+err.message;}
 }
 $('files').addEventListener('change',e=>gather(e.target.files));
-$('thresh').addEventListener('input',()=>{$('threshVal').textContent=parseFloat($('thresh').value).toFixed(2); if(rows.length)checkNames(rows.map(r=>r.file));});
+$('folder').addEventListener('change',e=>gather(e.target.files));
+$('thresh').addEventListener('input',()=>{$('threshVal').textContent=parseFloat($('thresh').value).toFixed(2); if(lastItems.length)checkFiles(lastItems,false);});
 
 /* ---- export report ---- */
 $('dlReport').onclick=()=>{
   if(typeof XLSX==='undefined'){$('msg').textContent='Spreadsheet library didn’t load — open in a normal browser tab.';return;}
-  const aoa=[['File name','Status','Suggested name','Closest approved','Score %']];
-  rows.forEach(r=>aoa.push([r.file, r.status==='ok'?'OK':r.status==='sug'?'Suggest':'No match', r.status==='sug'?r.suggest:'', r.closest||'', r.score>0?(r.score*100).toFixed(0):'']));
+  const aoa=[['Folder','File name','Status','Suggested name','Closest approved','Score %']];
+  rows.forEach(r=>aoa.push([r.dir||'', r.file, r.status==='ok'?'OK':r.status==='sug'?'Suggest':'No match', r.status==='sug'?r.suggest:'', r.closest||'', r.score>0?(r.score*100).toFixed(0):'']));
   const ws=XLSX.utils.aoa_to_sheet(aoa),wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Stem check');
   const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
   const blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download='stem_name_report.xlsx';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove();},1500);
 };
+
+/* ---- rename script (Bash) ---- */
+function shQuote(s){return "'"+String(s).split("'").join("'\\''")+"'";}
+function stripRoot(dir){ if(!dir)return ''; const p=dir.split('/'); return p.length>1?p.slice(1).join('/'):''; }
+function buildScript(){
+  const lines=['#!/usr/bin/env bash',
+    '# Renames stems to the suggested approved names.',
+    '# Save this file INSIDE the folder you selected, then run:  bash rename_stems.sh',
+    '# It renames relative to its own location, so it works wherever you saved it.',
+    '# "-n" means an existing file is never overwritten.',
+    'cd "$(dirname "$0")" || exit 1'];
+  let n=0;
+  rows.forEach(r=>{ if(r.status==='sug' && r.suggest && r.suggest!==r.file){
+    const sub=stripRoot(r.dir); const oldp=(sub?sub+'/':'')+r.file; const newp=(sub?sub+'/':'')+r.suggest;
+    lines.push('mv -n -- '+shQuote(oldp)+' '+shQuote(newp)); n++;
+  }});
+  if(!n)lines.push('echo "Nothing to rename — all names are OK."');
+  else lines.push('echo "Done — '+n+' file(s) processed. Review the results."');
+  return {text:lines.join('\n')+'\n', n};
+}
+$('dlBash').onclick=()=>{
+  const {text,n}=buildScript();
+  $('shText').value=text;
+  $('shMsg').textContent=n+' rename'+(n===1?'':'s');
+  $('shOverlay').style.display='flex';
+};
+$('shCopy').onclick=async()=>{
+  const t=$('shText').value;
+  try{ await navigator.clipboard.writeText(t); $('shMsg').textContent='Copied to clipboard ✓'; }
+  catch(_){ $('shText').focus(); $('shText').select(); try{document.execCommand('copy');$('shMsg').textContent='Copied ✓';}catch(e){$('shMsg').textContent='Press Ctrl/Cmd+C to copy';} }
+};
+$('shDl').onclick=()=>{
+  const blob=new Blob([$('shText').value],{type:'text/plain'});
+  const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download='rename_stems.sh';document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(u);a.remove();},1500);
+  $('shMsg').textContent='Download attempted — if blocked, use Copy instead.';
+};
+$('shClose').onclick=()=>{$('shOverlay').style.display='none';};
+$('shOverlay').addEventListener('click',e=>{if(e.target.id==='shOverlay')$('shOverlay').style.display='none';});
 
 /* ---- init (runs last, after everything is defined) ---- */
 buildApproved();

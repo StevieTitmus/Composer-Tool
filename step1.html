@@ -10,7 +10,9 @@ header{background:var(--card);color:var(--ink);padding:26px;border-bottom:1px so
 header h1{margin:0 0 4px;font-size:32px;font-weight:900;letter-spacing:-.01em}
 header p{margin:0;color:var(--sub);font-size:16px}
 .steps{max-width:960px;margin:16px auto 0;padding:0 18px;display:flex;gap:8px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
-.steps span{padding:6px 12px;border:1px solid var(--line);border-radius:2px;background:#fff}
+.steps span,.steps a{padding:6px 12px;border:1px solid var(--line);border-radius:2px;background:#fff}
+.steps a{color:var(--ink);text-decoration:none;cursor:pointer}
+.steps a:hover{border-color:var(--ink)}
 .steps .on{background:var(--ink);color:#fff;border-color:var(--ink)}
 main{max-width:960px;margin:0 auto;padding:18px 18px 120px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:2px;padding:18px;margin:16px 0;box-shadow:var(--shadow)}
@@ -46,8 +48,13 @@ a.next{color:var(--ink);font-weight:700;text-transform:uppercase;letter-spacing:
   <h1>Track Information Sheet</h1>
   <p>Step 1 of 2 &mdash; list your tracks and their mix variations, then download the sheet and continue to add credits.</p>
 </header>
-<div class="steps"><span class="on">1 &middot; Track sheet</span><span>2 &middot; Artist &amp; composer credits</span></div>
+<div class="steps"><span class="on">1 &middot; Track sheet</span><a href="composer.html">2 &middot; Artist &amp; composer credits &rarr;</a></div>
 <main>
+  <div class="card">
+    <label>Album name *</label>
+    <input type="text" id="album" placeholder="e.g. Do Your Own Thing"/>
+    <div class="hint" style="margin-top:6px">Used to name the downloaded file so the Music Team can see which album it is &mdash; and carried over to the credits step.</div>
+  </div>
   <div id="tracks"></div>
   <button class="addbtn" id="addTrack">+ Add track</button>
 </main>
@@ -67,6 +74,10 @@ const TEMPOS=["","Very Slow","Slow","Medium","Fast","Very Fast"];
 function el(t,a={},k=[]){const e=document.createElement(t);for(const x in a){if(x=='class')e.className=a[x];else if(x=='html')e.innerHTML=a[x];else e.setAttribute(x,a[x]);}(Array.isArray(k)?k:[k]).forEach(c=>c&&e.appendChild(typeof c=='string'?document.createTextNode(c):c));return e;}
 function sel(options,val){const s=el('select');options.forEach(o=>{const op=el('option',{value:o},o||'—');if(o===val)op.setAttribute('selected','');s.append(op);});return s;}
 const tracksBox=document.getElementById('tracks');
+const albumEl=document.getElementById('album');
+try{albumEl.value=localStorage.getItem('anAlbumName')||'';}catch(e){}
+albumEl.addEventListener('input',()=>{try{localStorage.setItem('anAlbumName',albumEl.value.trim());}catch(e){}update();});
+function fnSafe(s){return (s||'').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim();}
 let trackNo=0;
 
 function variationRow(initVer){
@@ -144,8 +155,9 @@ function update(){
     warn.textContent=msg;
     if(msg)ok=false;
   });
+  const album=albumEl.value.trim(); if(!album)ok=false;
   document.getElementById('go').disabled=!ok;
-  document.getElementById('msg').textContent = !tracks.length?'Add a track to begin.' : ok?(tracks.length+' track(s) ready — download, then continue to credits.') : 'Each track needs a title and at least one mix variation/type.';
+  document.getElementById('msg').textContent = !album?'Enter the album name.' : !tracks.length?'Add a track to begin.' : ok?(tracks.length+' track(s) ready — download, then continue to credits.') : 'Each track needs a title and at least one mix variation/type.';
   try{localStorage.setItem('anTrackTitles',JSON.stringify(tracks.map(t=>t.data.title).filter(Boolean)));
     const allRows=[];tracks.forEach(o=>{if(o.data.title)buildRows(o.data).forEach(r=>allRows.push(r));});
     localStorage.setItem('anTrackRows',JSON.stringify(allRows));}catch(e){}
@@ -163,9 +175,10 @@ document.getElementById('go').onclick=()=>{
     const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
     const blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
     const url=URL.createObjectURL(blob);const a=document.createElement('a');
-    a.href=url;a.download='Track Information Sheet.xlsx';document.body.appendChild(a);a.click();
+    const fname=(fnSafe(albumEl.value)||'Album')+' - Track Information Sheet.xlsx';
+    a.href=url;a.download=fname;document.body.appendChild(a);a.click();
     setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1500);
-    document.getElementById('msg').textContent='Downloaded “Track Information Sheet.xlsx”.';
+    document.getElementById('msg').textContent='Downloaded “'+fname+'”.';
   }catch(e){document.getElementById('msg').textContent='Download blocked by the preview — open this page in a normal browser tab to save the file.';}
 };
 tracksBox.append(trackCard());update();

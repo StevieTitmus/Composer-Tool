@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Composer Submission — Audio Network</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>
   :root{ --ink:#010101; --sub:#6A7170; --line:#E2E2E2; --acc:#010101; --accd:#010101;
          --bg:#F6F6F6; --card:#FFFFFF; --bad:#C0392B; --badbg:#FDECEC; --ok:#1E7D4F;
@@ -25,7 +25,7 @@
   select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:2px;font-size:15px;background:#fff}
   .row{display:grid;grid-template-columns:1fr 150px 150px 40px;gap:10px;align-items:start;margin:10px 0;padding:12px;border:1px solid var(--line);border-radius:2px;background:var(--bg)}
   .crow{display:block;margin:10px 0;padding:12px;border:1px solid var(--line);border-radius:2px;background:var(--bg)}
-  .crow .top{display:grid;grid-template-columns:1fr 40px;gap:10px;align-items:start}
+  .crow .top{display:grid;grid-template-columns:1fr 150px 40px;gap:10px;align-items:start}
   .ph{visibility:hidden}
   .idtag{font-size:13px;color:var(--sub);margin-top:4px;min-height:16px}
   .idtag.found{color:var(--ok)} .idtag.miss{color:var(--bad)}
@@ -63,9 +63,16 @@
 </header>
 <main>
   <div class="card">
+    <h2>Master report <span class="muted">(optional)</span></h2>
+    <p class="hint">Import the Synchtank Master report (.xlsx) for this album. Its tracks &amp; IDs are read; you layer the artists/contributors below, then download the <b>same report with the credit columns filled in</b> &mdash; no Stitch tool needed. Skip this to just export a credits CSV.</p>
+    <label class="addbtn" style="cursor:pointer">Import Master report (.xlsx)<input type="file" id="masterFile" accept=".xlsx" style="display:none"/></label>
+    <span class="muted" id="masterStatus" style="margin-left:10px"></span>
+  </div>
+
+  <div class="card">
     <h2>Album</h2>
-    <p class="hint">Album name (optional).</p>
-    <label for="album">Album name <span class="muted">(optional)</span></label>
+    <p class="hint">Used to name the downloaded file so the Music Team can see the album at a glance.</p>
+    <label for="album">Album name *</label>
     <input type="text" id="album" placeholder="e.g. Northern Lights"/>
   </div>
 
@@ -88,7 +95,7 @@
 <div class="bar">
   <div class="msg" id="msg">Add at least one artist.</div>
   <div style="display:flex;gap:10px;align-items:center">
-    <button class="go" id="go" style="background:#fff;color:var(--ink);border:1px solid var(--ink)">Credits only (CSV)</button>
+    <button class="go" id="go" style="background:#fff;color:var(--ink);border:1px solid var(--ink)">Export credits (CSV / XLSX)</button>
     <button class="go" id="goXlsx" style="display:none">Download finalised sheet (.xlsx)</button>
   </div>
 </div>
@@ -123,18 +130,19 @@ function artistRow(initial){
   const role=el('select');
   DATA.artistRoles.forEach(r=>role.append(el('option',{value:r},r)));
   roleWrap.append(el('label',{},'Role'),role);
-  const idWrap=el('div');const idOut=el('input',{type:'text',readonly:'true',placeholder:'auto'});
-  idWrap.append(el('label',{},'ID (auto)'),idOut);
+  const idWrap=el('div');const idOut=el('input',{type:'text',readonly:'true',placeholder:'auto'}); idOut.dataset.auto='1';
+  idWrap.append(el('label',{},'ID'),idOut);
+  idOut.addEventListener('input',()=>{idOut.dataset.auto='0';update();});
   const x=el('button',{class:'xbtn',title:'Remove'},'✕'); x.onclick=()=>{wrap.remove();update();}; const xWrap=el('div');xWrap.append(el('label',{class:'ph'},'\u00a0'),x);
   name.addEventListener('input',()=>{const v=name.value.trim();const id=artistMap.get(v.toLowerCase());
-    idOut.value=id||''; if(!v){idtag.textContent='';name.classList.remove('bad');}
-    else if(id){idtag.textContent='✓ ID '+id;idtag.className='idtag found';name.classList.remove('bad');}
-    else{idtag.textContent='Not on list — will be flagged';idtag.className='idtag miss';name.classList.add('bad');}
+    if(!v){idtag.textContent='';name.classList.remove('bad');idOut.value='';idOut.readOnly=true;idOut.dataset.auto='1';idOut.placeholder='auto';}
+    else if(id){idtag.textContent='✓ ID '+id;idtag.className='idtag found';name.classList.remove('bad');idOut.value=id;idOut.readOnly=true;idOut.dataset.auto='1';idOut.placeholder='auto';}
+    else{idtag.textContent='New — type the ID if you know it (or leave blank to flag)';idtag.className='idtag miss';name.classList.add('bad');if(idOut.dataset.auto!=='0')idOut.value='';idOut.readOnly=false;idOut.placeholder='Type ID if known';}
     update();});
-  if(initial){name.value=initial.name||'';idOut.value=initial.id||'';if(initial.role)role.value=initial.role;
-    if(initial.name){if(initial.id){idtag.textContent='✓ ID '+initial.id;idtag.className='idtag found';}else{idtag.textContent='Not on list — will be flagged';idtag.className='idtag miss';name.classList.add('bad');}}}
+  if(initial){name.value=initial.name||'';idOut.value=initial.id||'';if(initial.role)role.value=initial.role; const _m=initial.name?artistMap.has(initial.name.toLowerCase()):false; idOut.readOnly=_m; idOut.dataset.auto=_m?'1':'0'; idOut.placeholder=_m?'auto':'Type ID if known';
+    if(initial.name){if(initial.id){idtag.textContent='✓ ID '+initial.id;idtag.className='idtag found';}else{idtag.textContent='New — type the ID if you know it (or leave blank to flag)';idtag.className='idtag miss';name.classList.add('bad');}}}
   wrap.append(nameWrap,roleWrap,idWrap,xWrap);
-  wrap._get=()=>({name:name.value.trim(),id:idOut.value,role:role.value});
+  wrap._get=()=>({name:name.value.trim(),id:idOut.value.trim(),role:role.value});
   return wrap;
 }
 /* ---------- Contributor row ---------- */
@@ -144,14 +152,16 @@ function contributorRow(initial){
   const nameWrap=el('div');
   const name=el('input',{type:'text',list:'dl-contacts',placeholder:'Contributor name'});
   const idtag=el('div',{class:'idtag'});
-  const idHidden={value:''};
+  const idIn=el('input',{type:'text',readonly:'true',placeholder:'auto'}); idIn.dataset.auto='1';
+  const idWrap=el('div'); idWrap.append(el('label',{},'ID'),idIn);
+  idIn.addEventListener('input',()=>{idIn.dataset.auto='0';update();});
   nameWrap.append(el('label',{},'Contributor name'),name,idtag);
   const x=el('button',{class:'xbtn',title:'Remove'},'✕'); x.onclick=()=>{wrap.remove();update();}; const xWrap=el('div');xWrap.append(el('label',{class:'ph'},'\u00a0'),x);
-  top.append(nameWrap,xWrap);
+  top.append(nameWrap,idWrap,xWrap);
   name.addEventListener('input',()=>{const v=name.value.trim();const id=contactMap.get(v.toLowerCase());
-    idHidden.value=id||''; if(!v){idtag.textContent='';name.classList.remove('bad');}
-    else if(id){idtag.textContent='✓ ID '+id;idtag.className='idtag found';name.classList.remove('bad');}
-    else{idtag.textContent='Not on list — will be flagged';idtag.className='idtag miss';name.classList.add('bad');}
+    if(!v){idtag.textContent='';name.classList.remove('bad');idIn.value='';idIn.readOnly=true;idIn.dataset.auto='1';idIn.placeholder='auto';}
+    else if(id){idtag.textContent='✓ ID '+id;idtag.className='idtag found';name.classList.remove('bad');idIn.value=id;idIn.readOnly=true;idIn.dataset.auto='1';idIn.placeholder='auto';}
+    else{idtag.textContent='New — type the ID if you know it (or leave blank to flag)';idtag.className='idtag miss';name.classList.add('bad');if(idIn.dataset.auto!=='0')idIn.value='';idIn.readOnly=false;idIn.placeholder='Type ID if known';}
     update();});
   // roles
   const rolesWrap=el('div',{class:'roles'});
@@ -172,13 +182,13 @@ function contributorRow(initial){
   iInput.addEventListener('blur',commitInstr);
   instr.append(iInput,tags,inote);
   roleBoxes.find(b=>b.value=='Performer').addEventListener('change',e=>{instr.classList.toggle('show',e.target.checked);});
-  if(initial){name.value=initial.name||'';idHidden.value=initial.id||'';
-    if(initial.name){if(initial.id){idtag.textContent='✓ ID '+initial.id;idtag.className='idtag found';}else{idtag.textContent='Not on list — will be flagged';idtag.className='idtag miss';name.classList.add('bad');}}
+  if(initial){name.value=initial.name||''; idIn.value=initial.id||''; const _m=initial.name?contactMap.has(initial.name.toLowerCase()):false; idIn.readOnly=_m; idIn.dataset.auto=_m?'1':'0'; idIn.placeholder=_m?'auto':'Type ID if known';
+    if(initial.name){if(initial.id){idtag.textContent='✓ ID '+initial.id;idtag.className='idtag found';}else{idtag.textContent='New — type the ID if you know it (or leave blank to flag)';idtag.className='idtag miss';name.classList.add('bad');}}
     (initial.roles||[]).forEach(rn=>{const cb=roleBoxes.find(b=>b.value===rn);if(cb)cb.checked=true;});
     (initial.instruments||[]).forEach(it=>{if(chosen.indexOf(it)<0)chosen.push(it);});renderTags();
     if((initial.roles||[]).indexOf('Performer')>=0)instr.classList.add('show');}
   wrap.append(top,el('label',{},'Role(s) — tick all that apply'),rolesWrap,instr);
-  wrap._get=()=>({name:name.value.trim(),id:idHidden.value,roles:roleBoxes.filter(b=>b.checked).map(b=>b.value),instruments:chosen.slice()});
+  wrap._get=()=>({name:name.value.trim(),id:idIn.value.trim(),roles:roleBoxes.filter(b=>b.checked).map(b=>b.value),instruments:chosen.slice()});
   return wrap;
 }
 /* ---------- A details block (artists + contributors) ---------- */
@@ -196,15 +206,20 @@ function detailsBlock(container, seedArtists, seedContribs, showHint){
 }
 
 const album=document.getElementById('album');
-const display={value:''};  /* Display artists moved to the Stitch tool (Music Team) */
+try{album.value=localStorage.getItem('anAlbumName')||'';}catch(e){}
+const display={value:''};  /* Display artists left blank — the Music Team add these */
 const albumBlock=detailsBlock(document.getElementById('albumDetails'));
-album.addEventListener('input',update);
+album.addEventListener('input',()=>{try{localStorage.setItem('anAlbumName',album.value.trim());}catch(e){}update();});
 
-/* datalist of track names for the "tracks that differ" picker (from Step 1) */
-const dlTracks=el('datalist',{id:'dl-tracknames'});
-TRACKNAMES.forEach(t=>dlTracks.append(el('option',{value:t})));
-document.body.appendChild(dlTracks);
-if(TRACKNAMES.length){document.getElementById('excHint').textContent='Only if some tracks differ from the album-wide details above. Start typing — the '+TRACKNAMES.length+' track(s) from your track sheet will suggest.';}
+/* datalist of track names for the "tracks that differ" picker (from a Master report, or Step 1) */
+const dlTracks=el('datalist',{id:'dl-tracknames'}); document.body.appendChild(dlTracks);
+let MTITLES=[];
+function refreshTrackList(){
+  const names = MTITLES.length?MTITLES:TRACKNAMES;
+  dlTracks.innerHTML=''; names.forEach(t=>dlTracks.append(el('option',{value:t})));
+  if(names.length){document.getElementById('excHint').textContent='Only if some tracks differ from the album-wide details above. Start typing — the '+names.length+(MTITLES.length?' main mix(es) from your Master report':' track(s) from your track sheet')+' will suggest. An exception applies to that track and all its mix variations.';}
+}
+refreshTrackList();
 
 /* ---------- Exceptions ---------- */
 const excList=[]; const excWrap=document.getElementById('exceptions');
@@ -234,10 +249,10 @@ function update(){
   let miss=0; const chk=arr=>arr.forEach(a=>{if(a.name){const m=(a.id==''); if(m)miss++;}});
   chk(d.artists); d.contribs.forEach(c=>{if(c.name&&c.id=='')miss++;});
   d.exceptions.forEach(e=>{chk(e.artists);e.contribs.forEach(c=>{if(c.name&&c.id=='')miss++;});});
-  const ok=hasArtist;
+  const ok=(!!d.album)&&hasArtist;
   go.disabled=!ok;
   const gx=document.getElementById('goXlsx'); if(gx)gx.disabled=!ok;
-  msg.textContent = !hasArtist ? 'Add at least one artist.' :
+  msg.textContent = !d.album ? 'Enter the album name.' : !hasArtist ? 'Add at least one artist.' :
     (miss? (miss+' name(s) not on the master list — you can still submit; they’ll be flagged.') : 'Ready to download.');
 }
 function esc(s){s=(s==null?'':''+s);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
@@ -262,6 +277,29 @@ function doDownload(){
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download=(album.value.trim()||'submission').replace(/[^a-z0-9]+/gi,'_')+'_credits.csv';a.click();
 }
+function doDownloadXlsx(){
+  if(typeof XLSX==='undefined'){document.getElementById('msg').textContent='Spreadsheet library didn’t load — open in a normal browser tab.';return;}
+  const d=collect();
+  const rowsData=[{track:'ALL TRACKS',display:d.display,artists:d.artists,contribs:d.contribs},
+    ...d.exceptions.map(e=>({track:e.track,display:d.display,artists:e.artists,contribs:e.contribs}))];
+  const maxA=Math.max(1,...rowsData.map(r=>r.artists.filter(a=>a.name).length));
+  const maxC=Math.max(1,...rowsData.map(r=>r.contribs.filter(c=>c.name).length));
+  const head=['album_name','track','display_artists'];
+  for(let i=1;i<=maxA;i++)head.push('artist_'+i+'_id','artist_'+i+'_name','artist_'+i+'_role');
+  for(let i=1;i<=maxC;i++)head.push('contributor_'+i+'_id','contributor_'+i+'_name','contributor_'+i+'_roles_esv','contributor_'+i+'_instrument_types_esv');
+  const aoa=[head]; const redCells=[];
+  rowsData.forEach((r,ri)=>{const arts=r.artists.filter(a=>a.name),cons=r.contribs.filter(c=>c.name);
+    const row=[album.value.trim(),r.track,r.display]; let ci=3;
+    for(let i=0;i<maxA;i++){const a=arts[i]||{}; if(a.name&&!a.id)redCells.push([1+ri,ci+1]); row.push(a.id||'',a.name||'',a.role||''); ci+=3;}
+    for(let i=0;i<maxC;i++){const c=cons[i]||{}; if(c.name&&!c.id)redCells.push([1+ri,ci+1]); row.push(c.id||'',c.name||'',(c.roles||[]).join('\n'),(c.instruments||[]).join('\n')); ci+=4;}
+    aoa.push(row);});
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  redCells.forEach(([r,c])=>{const ref=XLSX.utils.encode_cell({r,c}); if(ws[ref])ws[ref].s={font:{color:{rgb:'C0392B'},bold:true},fill:{patternType:'solid',fgColor:{rgb:'FDECEC'}}};});
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Credits');
+  const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+  const blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=(album.value.trim().replace(/[^a-z0-9]+/gi,'_')||'submission')+'_credits.xlsx';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove();},1500);
+}
 function esch(s){return (s==null?'':''+s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function showSummary(){
   const d=collect();
@@ -280,11 +318,12 @@ function showSummary(){
   if(flagged.length)h+='<div class="note"><b>'+flagged.length+' name(s) not on the master list</b> — they will be submitted and flagged for the team to add:<br>'+flagged.map(esch).join('<br>')+'</div>';
   if(noRole.length)h+='<div class="warn"><b>Contributor(s) with no role selected:</b><br>'+noRole.map(esch).join('<br>')+'</div>';
   if(perfNoInstr.length)h+='<div class="warn"><b>Performer(s) with no instrument:</b><br>'+perfNoInstr.map(esch).join('<br>')+'</div>';
-  h+='<div class="modalbtns"><button class="btn2" id="mClose">Keep editing</button><button class="go" id="mDl">Download CSV</button></div>';
+  h+='<div class="modalbtns"><button class="btn2" id="mClose">Keep editing</button><button class="go" id="mXlsx" style="background:#fff;color:var(--ink);border:1px solid var(--ink)">Download XLSX</button><button class="go" id="mDl">Download CSV</button></div>';
   document.getElementById('modalCard').innerHTML=h;
   document.getElementById('modal').style.display='flex';
   document.getElementById('mClose').onclick=()=>{document.getElementById('modal').style.display='none';};
   document.getElementById('mDl').onclick=()=>{document.getElementById('modal').style.display='none';doDownload();};
+  document.getElementById('mXlsx').onclick=()=>{document.getElementById('modal').style.display='none';doDownloadXlsx();};
 }
 document.getElementById('go').onclick=()=>showSummary();
 
@@ -325,6 +364,96 @@ function downloadFinal(){
 }
 const goXlsx=document.getElementById('goXlsx');
 if(TRACKROWS.length){goXlsx.style.display='';goXlsx.onclick=downloadFinal;}
+
+/* ---------- Master report: import + fill credits + re-export ---------- */
+let MASTER=null;
+function creditsForTrack(title,d){
+  const t=(title||'').trim().toLowerCase(), b=baseTitle(title).toLowerCase();
+  const ex=d.exceptions.find(e=>{const en=(e.track||'').trim(); if(!en)return false; return en.toLowerCase()===t || baseTitle(en).toLowerCase()===b;});
+  return ex?{artists:ex.artists,contribs:ex.contribs}:{artists:d.artists,contribs:d.contribs};
+}
+function downloadFilledMaster(){
+  if(typeof XLSX==='undefined'||!MASTER){document.getElementById('msg').textContent='Import a Master report first.';return;}
+  const d=collect();
+  const sets=[{artists:d.artists,contribs:d.contribs},...d.exceptions.map(e=>({artists:e.artists,contribs:e.contribs}))];
+  const maxA=Math.max(1,...sets.map(s=>s.artists.filter(a=>a.name).length));
+  const maxC=Math.max(1,...sets.map(s=>s.contribs.filter(c=>c.name).length));
+  // Build the column order so ALL artist columns sit together (at the master's Artist 1 spot) and
+  // ALL contributor columns sit together (at the Contributor 1 spot). Extra columns are inserted in
+  // place — pushing Composition ID onward to the right — rather than appended at the far end.
+  const srcSys=MASTER.sys, srcLab=MASTER.labels, ti=MASTER.ti;
+  const outSys=[],outLab=[],plan=[];
+  const pushSrc=j=>{outSys.push(srcSys[j]);outLab.push(srcLab[j]);plan.push({src:j});};
+  const pushCred=(kind,n,field,s,l)=>{outSys.push(s);outLab.push(l);plan.push({kind,n,field});};
+  const emitArtists=()=>{for(let n=1;n<=maxA;n++){pushCred('artist',n,'id','artist_'+n+'_id','Artist '+n+' ID');pushCred('artist',n,'name','artist_'+n+'_name','Artist '+n+' Name');pushCred('artist',n,'role','artist_'+n+'_role','Artist '+n+' Role');}};
+  const emitContribs=()=>{for(let n=1;n<=maxC;n++){pushCred('contrib',n,'id','contributor_'+n+'_id','Contributor '+n+' ID');pushCred('contrib',n,'name','contributor_'+n+'_name','Contributor '+n+' Name');pushCred('contrib',n,'roles','contributor_'+n+'_roles_esv','Contributor '+n+' Roles');pushCred('contrib',n,'instr','contributor_'+n+'_instrument_types_esv','Contributor '+n+' Instrument Types');}};
+  const consumed=new Set();
+  ['artist_1_name','artist_1_role','contributor_1_name','contributor_1_roles_esv','contributor_1_instrument_types_esv'].forEach(s=>{const j=srcSys.indexOf(s);if(j>=0)consumed.add(j);});
+  let didA=false,didC=false;
+  for(let j=0;j<srcSys.length;j++){
+    if(consumed.has(j))continue;
+    if(srcSys[j]==='artist_1_id'){emitArtists();didA=true;}
+    else if(srcSys[j]==='contributor_1_id'){emitContribs();didC=true;}
+    else pushSrc(j);
+  }
+  if(!didA)emitArtists();
+  if(!didC)emitContribs();
+  // resolve each row to its MAIN track's title (via parent_id) so a main-track exception cascades to its variations
+  const idi=MASTER.idi, pcol=srcSys.indexOf('parent_id');
+  const mainTitleById={};
+  MASTER.rows.forEach(r=>{const p=pcol>=0?(''+(r[pcol]||'')).trim():''; if(p==='')mainTitleById[(''+(r[idi]||'')).trim()]=(''+(r[ti]||'')).trim();});
+  const creditsForRow=src=>{const p=pcol>=0?(''+(src[pcol]||'')).trim():''; const mid=p!==''?p:(''+(src[idi]||'')).trim(); const title=mainTitleById[mid]||(''+(src[ti]||'')).trim(); return creditsForTrack(title,d);};
+  const aoa=[outLab,outSys]; const redCells=[];
+  MASTER.rows.forEach((src,ri)=>{
+    const cr=creditsForRow(src);
+    const arts=cr.artists.filter(a=>a.name), cons=cr.contribs.filter(c=>c.name);
+    aoa.push(plan.map((p,ci)=>{
+      if(p.src!==undefined)return src[p.src]!==undefined?src[p.src]:'';
+      if(p.kind==='artist'){const a=arts[p.n-1]||{}; if(p.field==='name'&&a.name&&!a.id)redCells.push([2+ri,ci]); return p.field==='id'?(a.id||''):p.field==='name'?(a.name||''):(a.role||'');}
+      const c=cons[p.n-1]||{}; if(p.field==='name'&&c.name&&!c.id)redCells.push([2+ri,ci]); return p.field==='id'?(c.id||''):p.field==='name'?(c.name||''):p.field==='roles'?((c.roles||[]).join('\n')):((c.instruments||[]).join('\n'));
+    }));
+  });
+  try{
+    const ws=XLSX.utils.aoa_to_sheet(aoa);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Sheet1');
+    redCells.forEach(([r,c])=>{const ref=XLSX.utils.encode_cell({r,c}); if(ws[ref])ws[ref].s={font:{color:{rgb:'C0392B'},bold:true},fill:{patternType:'solid',fgColor:{rgb:'FDECEC'}}};});
+    const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    const blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url=URL.createObjectURL(blob);const a=document.createElement('a');
+    a.href=url;a.download=(album.value.trim().replace(/[^a-z0-9]+/gi,'_')||'master')+'_with_credits.xlsx';document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1500);
+    document.getElementById('msg').textContent='Downloaded filled Master report ('+MASTER.rows.length+' tracks). Display Artists left blank for the Music Team.';
+  }catch(e){document.getElementById('msg').textContent='Download blocked by the preview — open in a normal browser tab.';}
+}
+document.getElementById('masterFile').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const st=document.getElementById('masterStatus');
+  if(typeof XLSX==='undefined'){st.textContent='Spreadsheet library didn’t load — open in a normal browser tab.';return;}
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(rd.result),{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
+      if(aoa.length<3){st.textContent='That file has no track rows.';return;}
+      const labels=aoa[0].map(x=>''+x), sys=aoa[1].map(x=>''+x);
+      const idi=sys.indexOf('id'), ti=sys.indexOf('title');
+      if(idi<0||ti<0){st.textContent='Not a recognised Master report (row 2 needs the id/title system names).';return;}
+      const rows=aoa.slice(2).filter(r=>(''+(r[ti]||'')).trim()!=='');
+      MASTER={labels,sys,rows,idi,ti};
+      // only MAIN tracks go in the "tracks that differ" picker. A main track has no Parent Asset ID
+      // (variations point back to their main track via parent_id). Fall back to version/mix-type if no parent column.
+      const pi=sys.indexOf('parent_id'), vi=sys.indexOf('version'), mi=sys.indexOf('metadata_mix_type');
+      const isMain=r=>{ if(pi>=0) return (''+(r[pi]||'')).trim()===''; const v=vi>=0?(''+(r[vi]||'')).trim().toLowerCase():''; const m=mi>=0?(''+(r[mi]||'')).trim():''; return (v===''||v==='main')&&m===''; };
+      MTITLES=[...new Set(rows.filter(isMain).map(r=>(''+(r[ti]||'')).trim()).filter(Boolean))]; refreshTrackList();
+      const ai=sys.indexOf('album_1_title'); const albTitle=(ai>=0&&rows[0])?(''+(rows[0][ai]||'')).trim():'';
+      if(albTitle&&!album.value){album.value=albTitle; update();}
+      st.textContent='Loaded '+rows.length+' track(s)'+(albTitle?' from “'+albTitle+'”':'')+'. Add the artists/contributors, then “Download filled Master report”.';
+      goXlsx.style.display=''; goXlsx.textContent='Download filled Master report (.xlsx)'; goXlsx.onclick=downloadFilledMaster;
+      update();
+    }catch(err){st.textContent='Could not read that file: '+err.message;}
+  };
+  rd.readAsArrayBuffer(f);
+});
 
 document.getElementById('modal').addEventListener('click',e=>{if(e.target.id=='modal')document.getElementById('modal').style.display='none';});
 update();
