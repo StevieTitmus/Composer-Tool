@@ -7,21 +7,21 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Brandon Text","Brandon Grotesque","Helvetica Neue",Arial,sans-serif}
 header{background:var(--card);padding:26px;border-bottom:1px solid var(--line);box-shadow:var(--shadow)}
-header h1{margin:0 0 4px;font-size:32px;font-weight:900;letter-spacing:-.01em}
+header h1{margin:0 0 4px;font-size:40px;font-weight:900;letter-spacing:-.01em}
 header p{margin:0;color:var(--sub);font-size:16px}
-main{max-width:1000px;margin:0 auto;padding:22px 18px 120px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:2px;padding:18px;margin:16px 0;box-shadow:var(--shadow)}
+main{max-width:960px;margin:0 auto;padding:22px 18px 120px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:2px;padding:20px;margin:16px 0;box-shadow:var(--shadow)}
 .card h2{margin:0 0 4px;font-size:20px;font-weight:900}
 .hint{margin:0 0 12px;color:var(--sub);font-size:14px}
 textarea{width:100%;min-height:120px;padding:10px;border:1px solid var(--line);border-radius:2px;font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;resize:vertical}
 textarea:focus{outline:none;border-color:var(--ink)}
-.btn{background:#fff;color:var(--ink);border:1px solid var(--ink);border-radius:2px;padding:9px 16px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;display:inline-block}
+.btn{background:#fff;color:var(--ink);border:1px solid var(--ink);border-radius:2px;cursor:pointer;padding:8px 24px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;display:inline-flex;align-items:center;justify-content:center;gap:8px;line-height:1.2;text-decoration:none}
 .btn.solid{background:var(--ink);color:#fff}
 .btn:disabled{opacity:.4;cursor:not-allowed}
 .row{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:10px}
 label.file{cursor:pointer}
 input[type=file]{display:none}
-.count{font-size:13px;color:var(--sub)}
+.count{font-size:14px;color:var(--sub)}
 table{width:100%;border-collapse:collapse;margin-top:8px;font-size:14px}
 th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--sub)}
@@ -29,7 +29,7 @@ tr.ok td.st{color:var(--ok);font-weight:700}
 .pill{display:inline-block;padding:2px 8px;border-radius:2px;font-size:12px;font-weight:700}
 .pill.ok{background:var(--okbg);color:var(--ok)} .pill.sug{background:var(--warnbg);color:var(--warn)} .pill.no{background:var(--badbg);color:var(--bad)}
 .sug-name{font-weight:700}
-.pick{padding:5px 7px;border:1px solid var(--ink);border-radius:2px;font-size:13px;width:160px;font-family:inherit}
+.pick{padding:5px 7px;border:1px solid var(--ink);border-radius:2px;font-size:14px;width:160px;font-family:inherit}
 .pick:focus{outline:none}
 .summary{display:flex;gap:18px;flex-wrap:wrap;margin:8px 0 0;font-size:14px}
 .summary b{font-size:18px}
@@ -71,20 +71,22 @@ tr.ok td.st{color:var(--ok);font-weight:700}
   <div class="msg" id="msg">Choose your stem files to check.</div>
   <div style="display:flex;gap:10px;flex-wrap:wrap">
     <button class="btn" id="dlReport" disabled>Download report (.xlsx)</button>
-    <button class="btn" id="dlBash" disabled>Rename script (Bash)</button>
+    <button class="btn" id="dlBash" disabled>Rename script (Mac)</button>
+    <button class="btn" id="dlPs" disabled>Rename script (Windows)</button>
   </div>
 </div>
 
 <div id="shOverlay" class="overlay" style="display:none">
   <div class="modal">
-    <h3>Bash rename script</h3>
+    <h3 id="shTitle">Rename script</h3>
     <label style="font-size:13px;font-weight:700;display:block;margin:0 0 4px">Folder path (recommended)</label>
-    <input id="shPath" type="text" placeholder="/Users/you/Documents/REMIX STEMS" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:2px;font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;margin:0 0 10px"/>
-    <p class="hint">Paste the full path of the folder you selected (tip: drag the folder from Finder into a Terminal window to reveal it). The script will <span class="mono">cd</span> there, so it works no matter where the <span class="mono">.sh</span> lives. Leave it blank only if you save the script <b>inside</b> that folder. Then: <b>Copy</b>, and in Terminal run <span class="mono">pbpaste &gt; rename_stems.sh &amp;&amp; bash rename_stems.sh</span> &mdash; don&rsquo;t paste the script straight into Terminal.</p>
+    <input id="shPath" type="text" placeholder="Mac: /Users/you/Documents/REMIX STEMS   ·   Windows: C:\Users\you\Documents\REMIX STEMS" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:2px;font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;margin:0 0 10px"/>
+    <p class="hint">Paste the full path of the folder you selected (drag the folder into a Terminal / PowerShell window to reveal it). The script runs there, so it works wherever you save it. Leave blank only if you save the script <b>inside</b> that folder.</p>
+    <p class="hint" id="shHow"></p>
     <textarea id="shText" readonly spellcheck="false"></textarea>
     <div class="row">
       <button class="btn solid" id="shCopy">Copy to clipboard</button>
-      <button class="btn" id="shDl">Try download (.sh)</button>
+      <button class="btn" id="shDl">Try download</button>
       <button class="btn" id="shClose">Close</button>
       <span class="count" id="shMsg"></span>
     </div>
@@ -180,7 +182,7 @@ function render(scroll){
   const folders=new Set(rows.map(r=>r.dir||'')).size;
   $('summary').innerHTML='<span><b>'+rows.length+'</b> files</span><span><b>'+folders+'</b> folder(s)</span><span style="color:var(--ok)"><b>'+ok+'</b> OK</span><span style="color:var(--warn)"><b>'+sug+'</b> suggested</span><span style="color:var(--bad)"><b>'+no+'</b> no match</span>';
   $('dlReport').disabled=false;
-  $('dlBash').disabled = sug===0;
+  $('dlBash').disabled = sug===0; $('dlPs').disabled = sug===0;
   $('msg').textContent=rows.length+' file(s) checked — '+ok+' OK, '+sug+' to review, '+no+' unmatched.';
   if(scroll){try{$('resultsCard').scrollIntoView({behavior:'smooth',block:'start'});}catch(_){}}
 }
@@ -216,10 +218,12 @@ $('dlReport').onclick=()=>{
   const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download='stem_name_report.xlsx';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove();},1500);
 };
 
-/* ---- rename script (Bash) ---- */
-function shQuote(s){return "'"+String(s).split("'").join("'\\''")+"'";}
+/* ---- rename scripts (Mac Bash / Windows PowerShell) ---- */
+let scriptMode='bash';
+function shQuote(s){return "'"+String(s).split("'").join("'\\''")+"'";}   // POSIX single-quote
+function psQuote(s){return "'"+String(s).split("'").join("''")+"'";}      // PowerShell single-quote
 function stripRoot(dir){ if(!dir)return ''; const p=dir.split('/'); return p.length>1?p.slice(1).join('/'):''; }
-function cdLine(){
+function cdLineBash(){
   const p=$('shPath')?$('shPath').value.trim():'';
   if(!p)return 'cd "$(dirname "$0")" || exit 1';
   if(p==='~')return 'cd "$HOME" || exit 1';
@@ -227,22 +231,42 @@ function cdLine(){
   return 'cd '+shQuote(p)+' || exit 1';
 }
 function buildScript(){
-  const p=$('shPath')?$('shPath').value.trim():'';
-  const lines=['#!/usr/bin/env bash','# Renames stems to the suggested approved names.',
+  const p=$('shPath')?$('shPath').value.trim():''; let n=0; const lines=[];
+  if(scriptMode==='ps'){
+    lines.push('# Renames stems to the suggested approved names (Windows PowerShell).',
+      p?'# Runs in the folder path entered in the tool.':'# Save this file INSIDE the folder you selected, then right-click > Run with PowerShell.',
+      '# An existing file is never overwritten.',
+      p ? 'Set-Location -LiteralPath '+psQuote(p) : 'Set-Location -LiteralPath $PSScriptRoot');
+    rows.forEach(r=>{ if(r.status==='sug' && r.suggest && r.suggest!==r.file){
+      const sub=stripRoot(r.dir); const oldp=(sub?sub.replace(/\//g,'\\')+'\\':'')+r.file;
+      lines.push('Rename-Item -LiteralPath '+psQuote(oldp)+' -NewName '+psQuote(r.suggest)+' -ErrorAction SilentlyContinue'); n++;
+    }});
+    lines.push(n?'Write-Host "Done - '+n+' file(s) processed. Review the results."':'Write-Host "Nothing to rename - all names are OK."');
+    return {text:lines.join('\r\n')+'\r\n', n};
+  }
+  lines.push('#!/usr/bin/env bash','# Renames stems to the suggested approved names (Mac / Linux).',
     p?'# Runs in the folder path entered in the tool.':'# Save this file INSIDE the folder you selected, then run:  bash rename_stems.sh',
     '# "-n" means an existing file is never overwritten.',
-    cdLine()];
-  let n=0;
+    cdLineBash());
   rows.forEach(r=>{ if(r.status==='sug' && r.suggest && r.suggest!==r.file){
     const sub=stripRoot(r.dir); const oldp=(sub?sub+'/':'')+r.file; const newp=(sub?sub+'/':'')+r.suggest;
     lines.push('mv -n -- '+shQuote(oldp)+' '+shQuote(newp)); n++;
   }});
-  if(!n)lines.push('echo "Nothing to rename — all names are OK."');
-  else lines.push('echo "Done — '+n+' file(s) processed. Review the results."');
+  lines.push(n?'echo "Done — '+n+' file(s) processed. Review the results."':'echo "Nothing to rename — all names are OK."');
   return {text:lines.join('\n')+'\n', n};
 }
-function renderScript(){const {text,n}=buildScript(); $('shText').value=text; $('shMsg').textContent=n+' rename'+(n===1?'':'s');}
-$('dlBash').onclick=()=>{ renderScript(); $('shOverlay').style.display='flex'; };
+function renderScript(){
+  const {text,n}=buildScript(); $('shText').value=text; $('shMsg').textContent=n+' rename'+(n===1?'':'s');
+  if(scriptMode==='ps'){
+    $('shTitle').textContent='Windows PowerShell rename script';
+    $('shHow').innerHTML='<b>Windows:</b> click <b>Copy</b>, open <b>Notepad</b>, paste, and Save As <span class="mono">rename_stems.ps1</span> (set “Save as type” to <b>All Files</b>). Then right-click the file &rarr; <b>Run with PowerShell</b>. If blocked, open PowerShell and run <span class="mono">Set-ExecutionPolicy -Scope Process Bypass</span> first.';
+  } else {
+    $('shTitle').textContent='Mac / Linux Bash rename script';
+    $('shHow').innerHTML='<b>Mac:</b> click <b>Copy</b>, then in Terminal run <span class="mono">pbpaste &gt; rename_stems.sh &amp;&amp; bash rename_stems.sh</span> &mdash; don’t paste the script straight into Terminal.';
+  }
+}
+$('dlBash').onclick=()=>{ scriptMode='bash'; renderScript(); $('shOverlay').style.display='flex'; };
+$('dlPs').onclick=()=>{ scriptMode='ps'; renderScript(); $('shOverlay').style.display='flex'; };
 $('shPath').addEventListener('input',renderScript);
 $('shCopy').onclick=async()=>{
   const t=$('shText').value;
@@ -251,7 +275,7 @@ $('shCopy').onclick=async()=>{
 };
 $('shDl').onclick=()=>{
   const blob=new Blob([$('shText').value],{type:'text/plain'});
-  const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download='rename_stems.sh';document.body.appendChild(a);a.click();
+  const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download='rename_stems'+(scriptMode==='ps'?'.ps1':'.sh');document.body.appendChild(a);a.click();
   setTimeout(()=>{URL.revokeObjectURL(u);a.remove();},1500);
   $('shMsg').textContent='Download attempted — if blocked, use Copy instead.';
 };

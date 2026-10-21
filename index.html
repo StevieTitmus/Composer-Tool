@@ -6,18 +6,18 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Brandon Text","Brandon Grotesque","Helvetica Neue",Arial,sans-serif}
 header{background:var(--card);border-bottom:1px solid var(--line);box-shadow:var(--shadow);padding:26px}
-header h1{margin:0 0 4px;font-size:32px;font-weight:900;letter-spacing:-.01em}
+header h1{margin:0 0 4px;font-size:40px;font-weight:900;letter-spacing:-.01em}
 header p{margin:0;color:var(--sub);font-size:16px}
-main{max-width:1040px;margin:0 auto;padding:28px 18px 80px}
+main{max-width:960px;margin:0 auto;padding:28px 18px 80px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
 @media(max-width:640px){.grid{grid-template-columns:1fr}}
-.card{background:var(--card);border:1px solid var(--line);border-radius:2px;box-shadow:var(--shadow);padding:22px;display:flex;flex-direction:column}
+.card{background:var(--card);border:1px solid var(--line);border-radius:2px;box-shadow:var(--shadow);padding:20px;display:flex;flex-direction:column}
 .step{font-size:12px;font-weight:700;color:#fff;background:var(--ink);border-radius:2px;padding:2px 9px;align-self:flex-start;margin-bottom:12px}
 .card h2{margin:0 0 6px;font-size:20px;font-weight:900}
 .card p{margin:0 0 18px;color:var(--sub);font-size:14px;min-height:72px}
-a.go{background:var(--ink);color:#fff;text-decoration:none;border-radius:2px;padding:11px 22px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;align-self:flex-start}
+a.go{background:var(--ink);color:#fff;border-radius:2px;align-self:flex-start;padding:8px 24px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;display:inline-flex;align-items:center;justify-content:center;gap:8px;line-height:1.2;text-decoration:none}
 .flow{color:var(--sub);font-size:14px;margin:22px 0 0;text-align:center}
-.resources{background:var(--card);border:1px solid var(--line);border-radius:2px;box-shadow:var(--shadow);padding:22px;margin-top:22px}
+.resources{background:var(--card);border:1px solid var(--line);border-radius:2px;box-shadow:var(--shadow);padding:20px;margin-top:22px}
 .resources h2{margin:0 0 12px;font-size:20px;font-weight:900}
 .resources ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px}
 .resources a{color:var(--ink);font-weight:700;text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:2px}
@@ -37,20 +37,8 @@ a.go{background:var(--ink);color:#fff;text-decoration:none;border-radius:2px;pad
       <a class="go" href="step1.html">Start step 1</a>
       <a href="composer.html" style="margin-top:12px;font-size:13px;color:var(--sub);text-decoration:none">Already done the track sheet? Add credits &rarr;</a>
     </div>
-    <div class="card">
-      <span class="step">Music Team</span>
-      <h2>Stitch &amp; Finalise</h2>
-      <p>Import the track sheet and the composer&rsquo;s credits, add mixing/mastering engineers, review, and export the finished upload sheet.</p>
-      <a class="go" href="stitch.html">Open stitch tool</a>
-    </div>
-    <div class="card">
-      <span class="step">Composers</span>
-      <h2>Stem Name Checker</h2>
-      <p>Check your stem file names against the approved Audio Network tag list &mdash; nothing is uploaded, only the names are read. Flags anything off-list and suggests the closest approved tag.</p>
-      <a class="go" href="stemcheck.html">Open checker</a>
-    </div>
   </div>
-  <p class="flow">Workflow: composer fills the submission &rarr; sends the export to the Music Team &rarr; Music Team stitches &amp; finalises for upload.</p>
+  <p class="flow">Workflow: composer builds the track sheet &rarr; adds the album&rsquo;s artists &amp; contributors &rarr; sends the export to the Music Team.</p>
 
   <div class="resources">
     <h2>Resources</h2>
