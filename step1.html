@@ -20,17 +20,21 @@ main{max-width:960px;margin:0 auto;padding:18px 18px 120px}
 label{display:block;font-weight:700;font-size:14px;margin:0 0 4px}
 input[type=text],textarea,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:2px;font-size:16px;background:#fff;font-family:inherit}
 input[type=text]:focus,textarea:focus,select:focus{outline:none;border-color:var(--ink)}
+select:disabled{background:var(--bg);color:var(--sub);cursor:not-allowed}
 textarea{min-height:52px;resize:vertical}
+input.bad,textarea.bad{border-color:var(--bad);background:var(--badbg)}
 .tgrid{display:grid;grid-template-columns:1fr 90px 110px 110px 120px;gap:10px}
 @media(max-width:760px){.tgrid{grid-template-columns:1fr 1fr}}
 .trackhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
 .trackhead h3{margin:0;font-size:20px;font-weight:900}
 .mainbadge{display:inline-block;background:var(--ink);color:#fff;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:2px;margin-left:6px;vertical-align:middle}
 .sec{font-size:12px;color:var(--sub);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin:16px 0 6px}
-.vrow{display:grid;grid-template-columns:150px 110px 1fr 34px 34px;gap:10px;align-items:start;margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:2px;background:var(--bg)}
+.vrow{display:grid;grid-template-columns:150px 110px 1fr 34px;gap:10px;align-items:start;margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:2px;background:var(--bg)}
 @media(max-width:760px){.vrow{grid-template-columns:1fr 1fr}}
 .vprev{grid-column:1/-1;font-size:13px;color:var(--sub);margin-top:-2px}
 .vprev b{color:var(--ink)}
+.vnum{display:inline-block;background:var(--ink);color:#fff;border-radius:2px;padding:0 5px;margin-right:6px;font-weight:700;letter-spacing:.03em}
+.vnum:empty{display:none}
 .mini{font-size:11px;color:var(--sub);margin-bottom:2px;font-weight:700}
 .addbtn{background:#fff;color:var(--ink);border:1px solid var(--ink);border-radius:2px;cursor:pointer;padding:8px 24px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;display:inline-flex;align-items:center;justify-content:center;gap:8px;line-height:1.2;text-decoration:none}
 .xbtn{background:none;border:1px solid var(--line);border-radius:2px;color:var(--sub);cursor:pointer;height:38px;width:100%}
@@ -40,7 +44,7 @@ textarea{min-height:52px;resize:vertical}
 .bar .msg{font-size:14px;color:var(--sub)}
 .baractions{display:flex;gap:10px;align-items:center}
 .go{background:var(--ink);color:#fff;border:0;border-radius:2px;cursor:pointer;padding:8px 24px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;display:inline-flex;align-items:center;justify-content:center;gap:8px;line-height:1.2;text-decoration:none}
-.go:disabled{opacity:.4;cursor:not-allowed}
+.go:disabled,.addbtn:disabled{opacity:.4;cursor:not-allowed}
 a.next{color:var(--ink);border:1px solid var(--ink);border-radius:2px;padding:8px 24px;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;display:inline-flex;align-items:center;justify-content:center;gap:8px;line-height:1.2;text-decoration:none}
 </style></head><body>
 <header>
@@ -56,7 +60,10 @@ a.next{color:var(--ink);border:1px solid var(--ink);border-radius:2px;padding:8p
     <div class="hint" style="margin-top:6px">Used to name the downloaded file so the Music Team can see which album it is &mdash; and carried over to the credits step.</div>
   </div>
   <div id="tracks"></div>
-  <button class="addbtn" id="addTrack">+ Add track</button>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <button class="addbtn" id="addTrack">+ Add blank track</button>
+    <button class="addbtn" id="dupTrack" title="Adds a new track with the same versions and mix types as the track above">+ Duplicate track above</button>
+  </div>
   <div class="card" style="margin-top:20px">
     <div class="hint" style="margin:0"><b>Clear</b> wipes everything on this page so you can start a new track sheet from scratch.</div>
     <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -74,7 +81,7 @@ a.next{color:var(--ink);border:1px solid var(--ink);border-radius:2px;padding:8p
 const KEYS=["","C","Am","G","Em","F","Dm","D","Bm","Bb/A#","Gm","A","F#m/Gbm","Eb/D#","Cm","E","C#m/Dbm","Ab/G#","Fm","B","G#m/Abm","Db/C#","Bbm/A#m","Gb/F#","Ebm/D#m","N/A"];
 const METERS=["","2/2","2/4","3/4","4/4","5/4","6/4","7/4","3/8","5/8","6/8","7/8","9/8","10/8","12/8","N/A"];
 const VERSIONS=["","Alternative","Ambient","Direct Intro","Drums/Percussion","Fanfare","Gapped Editors Mix","Instrumental","Light","Minimal Mix","No Choir","No Drums/Percussion","No Guitar","No Orchestra","No Piano","No Strings","No Synths","No Woodwinds","Orchestra Only","Promo","Rhythm Bed","Sped Up","Stripped Back","Synths/FX","Underscore","Vocal"];
-const MIXTYPES=["","60","30","20","15","Bumper","Sting"];
+const MIXTYPES=["","Full Length","60","30","20","15","Bumper","Sting"];
 const TEMPOS=["","Very Slow","Slow","Medium","Fast","Very Fast"];
 function el(t,a={},k=[]){const e=document.createElement(t);for(const x in a){if(x=='class')e.className=a[x];else if(x=='html')e.innerHTML=a[x];else e.setAttribute(x,a[x]);}(Array.isArray(k)?k:[k]).forEach(c=>c&&e.appendChild(typeof c=='string'?document.createTextNode(c):c));return e;}
 function sel(options,val){const s=el('select');options.forEach(o=>{const op=el('option',{value:o},o||'—');if(o===val)op.setAttribute('selected','');s.append(op);});return s;}
@@ -88,23 +95,24 @@ let trackNo=0;
 function variationRow(initial){
   initial=initial||{};
   const row=el('div',{class:'vrow'});
-  const ver=sel(VERSIONS,initial.version||'');const mix=sel(MIXTYPES,initial.mixType||'');const desc=el('input',{type:'text',placeholder:'Description of this variation'});
+  const ver=sel(VERSIONS,initial.version||'');const mix=sel(MIXTYPES,initial.mixSel||initial.mixType||'');const desc=el('input',{type:'text',placeholder:'Description of this variation (required)'});
   desc.value=initial.desc||'';
+  // a Sting never has a Version: picking Sting clears and locks the Version dropdown
+  const syncSting=()=>{const st=mix.value==='Sting'; if(st)ver.value=''; ver.disabled=st; ver.title=st?'Stings don’t have a Version':'';};
+  mix.addEventListener('input',syncSting); mix.addEventListener('change',syncSting); syncSting();
   const prev=el('div',{class:'vprev'});
+  const num=el('span',{class:'vnum'});
   const x=el('button',{class:'xbtn',title:'Remove variation'},'✕');
   x.onclick=()=>{row.remove();update();};
-  const dup=el('button',{class:'xbtn',title:'Duplicate this variation (copies Version, Mix Type and Description into a new row below)'},'\u29C9');
-  dup.onclick=()=>{row.after(variationRow(row._get()));update();};
   [ver,mix,desc].forEach(e=>e.addEventListener('input',update));
   row.append(
-    el('div',{},[el('div',{class:'mini'},'Version'),ver]),
+    el('div',{},[el('div',{class:'mini'},[num,'Version']),ver]),
     el('div',{},[el('div',{class:'mini'},'Mix Type'),mix]),
     el('div',{},[el('div',{class:'mini'},'Description'),desc]),
-    el('div',{},[el('div',{class:'mini'},' '),dup]),
     el('div',{},[el('div',{class:'mini'},' '),x]),
     prev);
-  row._get=()=>({version:ver.value,mixType:mix.value,desc:desc.value.trim()});
-  row._prev=prev;
+  row._get=()=>({version:ver.value,mixType:(mix.value==='Full Length'?'':mix.value),mixSel:mix.value,desc:desc.value.trim()});
+  row._prev=prev; row._num=num; row._desc=desc;
   return row;
 }
 function trackCard(initial){
@@ -122,29 +130,38 @@ function trackCard(initial){
   [title,bpm].forEach(e=>e.addEventListener('input',update));[key,meter,tempo].forEach(e=>e.addEventListener('input',update));
   const grid=el('div',{class:'tgrid'});
   grid.append(
-    el('div',{},[el('label',{html:'Title * <span class="mainbadge">Main mix</span>'}),title]),
+    el('div',{},[el('label',{html:'Title * <span class="mainbadge">01 &middot; Main mix</span>'}),title]),
     el('div',{},[el('label',{},'Key'),key]),
     el('div',{},[el('label',{},'BPM'),bpm]),
     el('div',{},[el('label',{},'Meter'),meter]),
     el('div',{},[el('label',{},'Tempo'),tempo]));
-  const dwrap=el('div',{style:'margin-top:10px'});dwrap.append(el('label',{},'Description'),desc);
+  const dwrap=el('div',{style:'margin-top:10px'});dwrap.append(el('label',{},'Description *'),desc);
   const vbox=el('div');
   desc.addEventListener('input',update);
   const vAdd=el('button',{class:'addbtn'},'+ Add mix variation');vAdd.onclick=()=>{vbox.append(variationRow());update();};
   const warn=el('div',{class:'warn'});
   card.append(head,grid,dwrap,el('div',{class:'sec'},'Mix variations'),
-    el('div',{class:'hint',style:'margin:-2px 0 8px'},'The track above is the ‘Main Mix’. Add its versions / cutdowns below. For full length alt mixes, leave the Mix Type blank. For cutdowns of the Main Mix, select ‘Vocal’ or ‘Instrumental’ in the Version dropdown.'),
+    el('div',{class:'hint',style:'margin:-2px 0 8px'},'The track above is the ‘Main Mix’. Add its versions / cutdowns below. For full length alt mixes, set the Mix Type to ‘Full Length’. For cutdowns of the Main Mix, select ‘Vocal’ or ‘Instrumental’ in the Version dropdown.'),
     vbox,vAdd,warn);
   if(initial.variations&&initial.variations.length)initial.variations.forEach(v=>vbox.append(variationRow(v)));
   else for(let k=0;k<8;k++)vbox.append(variationRow());  // 8 version slots
   card._get=()=>({title:title.value.trim(),key:key.value,bpm:bpm.value.trim(),meter:meter.value,tempo:tempo.value,desc:desc.value.trim(),
     variations:[...vbox.children].filter(r=>r._get).map(r=>r._get()), _vrows:[...vbox.children].filter(r=>r._prev)});
-  card._warn=warn;
+  card._warn=warn; card._desc=desc;
   return card;
 }
 document.getElementById('addTrack').onclick=()=>{tracksBox.append(trackCard());update();};
+document.getElementById('dupTrack').onclick=()=>{
+  const cards=[...tracksBox.children]; const last=cards[cards.length-1];
+  if(!last){tracksBox.append(trackCard());update();return;}
+  // copy the mix structure only (Version + Mix Type); title, key, BPM and descriptions start fresh
+  const vars=last._get().variations.map(v=>({version:v.version,mixType:v.mixType,mixSel:v.mixSel,desc:''}));
+  const card=trackCard({variations:vars}); tracksBox.append(card); update();
+  try{card.scrollIntoView({behavior:'smooth',block:'start'});}catch(_){}
+  const t=card.querySelector('.tgrid input[type=text]'); if(t)t.focus();
+};
 
-function collect(){return [...tracksBox.children].map(c=>({data:c._get(),warn:c._warn}));}
+function collect(){return [...tracksBox.children].map(c=>({data:c._get(),warn:c._warn,card:c}));}
 function buildRows(t){ // returns array of A-I arrays for one track
   const base=t.title||'Untitled';const rows=[];
   // exactly one Main row, built from the track fields + primary description
@@ -158,18 +175,24 @@ function buildRows(t){ // returns array of A-I arrays for one track
 }
 function update(){
   const tracks=collect();let ok=tracks.length>0;
-  tracks.forEach(({data,warn})=>{
+  tracks.forEach(({data,warn,card})=>{
     // live-preview each variation title
-    let i=2;data._vrows.forEach(r=>{const g=r._get();if(g.version||g.mixType){const title=(data.title||'Untitled')+' '+i+(g.mixType?' ('+g.mixType+')':'');r._prev.innerHTML='&rarr; <b>'+esc(title)+'</b>';i++;}else{r._prev.innerHTML='<span style="color:#6A7170">Empty slot — pick a Version or Mix Type to include it</span>';}});
+    let i=2;data._vrows.forEach(r=>{const g=r._get();if(g.version||g.mixType){r._num.textContent=String(i).padStart(2,'0');const title=(data.title||'Untitled')+' '+i+(g.mixType?' ('+g.mixType+')':'');r._prev.innerHTML='&rarr; <b>'+esc(title)+'</b>';i++;}else{r._num.textContent='';r._prev.innerHTML='<span style="color:#6A7170">'+(g.mixSel==='Full Length'?'Full Length — pick a Version to include this mix':'Empty slot — pick a Version or Mix Type to include it')+'</span>';}});
     const realVars=data.variations.filter(v=>v.version||v.mixType).length;
+    // descriptions are mandatory wherever a mix has been filled in
+    const started=!!(data.title||data.key||data.bpm||data.desc||realVars);
+    const mainMissing=started&&!data.desc; card._desc.classList.toggle('bad',mainMissing);
+    let varMissing=0; data._vrows.forEach(r=>{const g=r._get(); const miss=!!(g.version||g.mixType)&&!g.desc; r._desc.classList.toggle('bad',miss); if(miss)varMissing++;});
     let msg='';
     if(!data.title)msg='Needs a title.';
     else if(realVars===0)msg='Add at least one mix variation or mix type.';
+    else if(mainMissing||varMissing)msg='Add a description for '+[mainMissing?'the main mix':'',varMissing?(varMissing+' version'+(varMissing===1?'':'s')):''].filter(Boolean).join(' and ')+'.';
     warn.textContent=msg;
     if(msg)ok=false;
   });
   const album=albumEl.value.trim(); if(!album)ok=false;
-  document.getElementById('msg').textContent = !album?'Enter the album name.' : !tracks.length?'Add a track to begin.' : ok?(tracks.length+' track(s) ready — continue to the credits step.') : 'Each track needs a title and at least one mix variation/type.';
+  const dt=document.getElementById('dupTrack'); if(dt)dt.disabled=!tracks.length;
+  document.getElementById('msg').textContent = !album?'Enter the album name.' : !tracks.length?'Add a track to begin.' : ok?(tracks.length+' track(s) ready — continue to the credits step.') : 'Each track needs a title, at least one mix variation/type, and a description for every mix.';
   try{localStorage.setItem('anTrackTitles',JSON.stringify(tracks.map(t=>t.data.title).filter(Boolean)));
     const allRows=[];tracks.forEach(o=>{if(o.data.title)buildRows(o.data).forEach(r=>allRows.push(r));});
     localStorage.setItem('anTrackRows',JSON.stringify(allRows));
